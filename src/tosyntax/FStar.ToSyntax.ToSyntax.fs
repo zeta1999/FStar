@@ -1094,7 +1094,7 @@ and desugar_term_maybe_top (top_level:bool) (env:env_t) (top:term) : S.term =
                 | []
                 | [{v=Pat_wild _}] -> body
                 | _ ->
-                  S.mk (Tm_match(S.bv_to_name x, desugar_disjunctive_pattern pat None body)) None body.pos in
+                  S.mk (Tm_match(S.bv_to_name x, desugar_disjunctive_pattern pat None body)) None top.range in
               mk <| Tm_let((false, [mk_lb (Inl x, x.sort, t1)]), Subst.close [S.mk_binder x] body)
         in
         if is_mutable
@@ -1654,7 +1654,7 @@ let rec desugar_tycon env (d: AST.decl) quals tcs : (env_t * sigelts) =
             | None ->
               if BU.for_some (function S.Effect -> true | _ -> false) quals
               then teff
-              else tun
+              else ktype
             | Some k -> desugar_term env' k in
         let t0 = t in
         let quals = if quals |> BU.for_some (function S.Logic -> true | _ -> false)

@@ -19,8 +19,8 @@ def show_help():
     print("  -h, --help  \t\t\tdisplay this message")
     print("  -f x, --infile=x\t\tprocess file <x> (instead of stdin)")
     print("  -o x, --outfile=x\t\twrite output to file <x> (instead of stdout)")
-    print("  -s x, --stat=x\t\trank entries by <x> (instead of time)")
-    print("  -n n, -t n, --top=n\t\tshow the <n> highest ranked queries (default 10)")
+    print("  -s x, --stat=x\t\trank entries by <x> (instead of time; use 'ALPHA' for alphabetical)")
+    print("  -n n, -t n, --top=n\t\tshow the <n> highest ranked queries (default 10, 'all' and '*' mean unlimited)")
     print("  -a, --append\t\t\tappend to output (instead of overwriting it)")
     print("  -r, --reverse\t\t\treverse sort order")
     print("  -c, --collate\t\t\tcollate queries of the same name (instead of adding ticks)")
@@ -88,7 +88,7 @@ def get_int_value(stats, column):
     return [(0 if t == "" else int(t)) for t in [get_value(stats, column)]][0]
 
 def get_string_value(stats, column):
-    return str(get_value(stats, column))
+    return str(get_value(stats, column)).strip("\"")
 
 
 def write_header(f, order_column, fstar_output_columns, columns):
@@ -111,7 +111,7 @@ def write_footer(f):
 def write_query_row(f, item, order_column, fstar_columns, columns):
     key  = "\"" + item[0] + "\""
     stats = item[1]
-    rng = "\"" + get_value(stats, "fstar_range").split(" ")[0] + "\""
+    rng = "\"" + get_value(stats, "fstar_range").strip("\"").split(" ")[0] + "\""
     n = stats[ec]
     order_value = str(cfmt(order_column, get_value(stats, order_column)))
 
@@ -150,11 +150,15 @@ def process_file(infile, outfile, stat, n, collate = False, append = False, reve
     # (.\FStar.UInt.fst(11,11-11,14))	Query-stats (FStar.UInt.pow2_values, 1)	succeeded (with hint) in 467 milliseconds with fuel 2 and ifuel 1 and rlimit 2723280 statistics={added-eqs=2 binary-propagations=3629 conflicts=1 datatype-accessor-ax=3 max-memory=8.96 memory=8.96 mk-bool-var=7332 mk-clause=54 num-allocs=25468507 num-checks=1 propagations=3632 rlimit-count=378055 time=0.00}
     # From CI:
     # 2017-05-10T12:50:45.6397264Z (.\FStar.Int.fst(8,11-8,14))       Query-stats (FStar.Int.pow2_values, 1)  succeeded (with hint) in 34 milliseconds with fuel 2 and ifuel 1 and rlimit 2723280
+    # F* also reports:
+    # 2017-06-29T14:00:36.8084892Z STDERR: Verified module: Hacl.Spec.Bignum.Fsquare (576007 milliseconds)
 
     rx=re.compile("^([ 0-9-TZ:.]+)?\((?P<fstar_range>.*)\)[ \t]+Query-stats \((?P<fstar_name>.*),[ ]*(?P<fstar_index>.*)\)[ \t]+(?P<fstar_tag>[a-zA-Z]+)(?P<fstar_usedhints>.*) in (?P<fstar_time>[0-9+\.+-]+) milliseconds with fuel (?P<fstar_fuel>\d+) and ifuel (?P<fstar_ifuel>\d+) and rlimit (?P<fstar_rlimit>\d+)[ \t\r]*(statistics=\{(?P<fstar_z3stats>.*)\})?[ \t\r]*$")
     z3rx=re.compile("([^ =]+)=([^ =\"]+|\".*\")")
+    modrx=re.compile("^([ 0-9-TZ:.]+( STDERR:)? )?Verified module: (?P<module>[^ ]+) \((?P<module_time>[0-9]*) milliseconds\)[ \t\r]*$")
 
     queries = {}
+    modules = {}
     columns = set()
     columns.add(ec)
 
@@ -174,7 +178,7 @@ def process_file(infile, outfile, stat, n, collate = False, append = False, reve
                         add_query(stats, k, v)
                         columns.add(k)
                 stats[ec] = 1
-                id = str(get_value(stats, "fstar_name")) + ", " + str(get_value(stats, "fstar_index"))
+                id = "(%s, %d)" % (get_value(stats, "fstar_name"), get_value(stats, "fstar_index"))
                 if not collate:
                     while id in queries:
                         id = id + "'"
@@ -182,7 +186,12 @@ def process_file(infile, outfile, stat, n, collate = False, append = False, reve
                     queries[id] = {}
                 queries[id] = merge_values(queries[id], stats)
             elif line.find("Query-stats") != -1:
-                print("Warning: unmatched query-stats line: %s" % line)    
+                print("Warning: unmatched query-stats line: %s" % line)
+            modrm=modrx.match(line)
+            if modrm is not None:
+                k = modrm.groupdict()["module"]
+                v = modrm.groupdict()["module_time"]
+                modules[k] = int(v);
 
     if stat == "ALPHA":
         oq = sorted(queries.items(), key=lambda row: row[0], reverse=reverse)
@@ -200,10 +209,10 @@ def process_file(infile, outfile, stat, n, collate = False, append = False, reve
             write_query_row(f, item, stat, fstar_output_columns, columns)
         write_footer(f)
         if global_stats:
-            process_global_stats(f, queries)
+            process_global_stats(f, queries, modules, collate)
 
 
-def process_global_stats(f, queries):
+def process_global_stats(f, queries, modules, collate):
     f.write("\"Name\",\"Value\",\"Unit\"\n")
     time = 0.0
     fstar_time = 0
@@ -219,6 +228,9 @@ def process_global_stats(f, queries):
     failed_without_hint = 0
     failed_with_hint = 0
     sum_num_checks = 0
+    sum_failed = 0
+    sum_failed_with_hint = 0
+    sum_failed_without_hint = 0
 
     for k, v in queries.items():
         kv_time = get_float_value(v, "time")
@@ -254,6 +266,14 @@ def process_global_stats(f, queries):
             else:
                 assert(t == "-" and u == "-")
                 failed_without_hint += 1
+            if not collate:
+                # (this don't make sense with query collation)
+                if t == "-":
+                    sum_failed += kv_time
+                    if u == "+":
+                        sum_failed_with_hint += kv_time
+                    elif u == "-":
+                        sum_failed_without_hint += kv_time
             
     f.write("\"# Queries\",%s,%s\n" % (len(queries), "\"\""))
     f.write("\"# succeeded\",%s,%s\n" % ((succeeded_with_hint + succeeded_without_hint), "\"\""))
@@ -272,6 +292,10 @@ def process_global_stats(f, queries):
     f.write("\"Sum(rlimit)\",%s,%s\n" % (sum_fstar_rlimit, "\"\""))
     f.write("\"Max(rlimit)\",%s,%s\n" % (max_fstar_rlimit, "\"\""))
 
+    if not collate:
+        f.write("\"Sum(time failed)\",%s,%s\n" % (sum_failed, "\"sec\""))
+        f.write("\"Sum(time failed with hint)\",%s,%s\n" % (sum_failed_with_hint, "\"sec\""))
+        f.write("\"Sum(time failed without hint)\",%s,%s\n" % (sum_failed_without_hint, "\"sec\""))
     
     rlimit_cnst = float(544656)
     rlimit_budget_used = float("inf") if (max_rlimit_count == 0.0) else 100.0 * (float(sum_rlimit_count)/(float(max_rlimit_count)*rlimit_cnst))
@@ -283,6 +307,14 @@ def process_global_stats(f, queries):
     f.write("\"rlimit/sec\",%s,%s\n" % (rlimit_per_sec, "\"\""))
 
     f.write("\"Max(memory)\",%s,%s\n" % (max_max_memory, "\"MB\""))
+
+    f.write("\"# Modules\",%s,%s\n" % (len(modules), "\"\""))
+    if len(modules) > 0:
+        min_mod = min(modules.keys(), key=(lambda key: modules[key]))
+        max_mod = max(modules.keys(), key=(lambda key: modules[key]))
+        f.write("\"# Sum(time modules)\",%s,%s\n" % (sum(modules.values()), "\"msec\""))
+        f.write("\"# Min(time modules)\",%s,%s,\"%s\"\n" % (min(modules.values()), "\"msec\"", min_mod))
+        f.write("\"# Max(time modules)\",%s,%s,\"%s\"\n" % (max(modules.values()), "\"msec\"", max_mod))
 
     f.write("\n")
 
@@ -317,7 +349,7 @@ def main(argv):
         elif o in ("-s", "--stat"):
             stat = a
         elif o in ("-t", "-n", "--top"):
-            if a == "all":
+            if a == "all" or a == "*":
                 n = sys.maxint
             else:
                 n = int(a)

@@ -93,6 +93,7 @@ let defaults =
       ("_fstar_home"                  , String "");
       ("_include_path"                , List []);
       ("admit_smt_queries"            , Bool false);
+      ("admit_except"                 , Unset);
       ("check_hints"                  , Bool false);
       ("codegen"                      , Unset);
       ("codegen-lib"                  , List []);
@@ -194,6 +195,7 @@ let lookup_opt s c =
   c (get_option s)
 
 let get_admit_smt_queries       ()      = lookup_opt "admit_smt_queries"        as_bool
+let get_admit_except            ()      = lookup_opt "admit_except"             (as_option as_string)
 let get_check_hints             ()      = lookup_opt "check_hints"              as_bool
 let get_codegen                 ()      = lookup_opt "codegen"                  (as_option as_string)
 let get_codegen_lib             ()      = lookup_opt "codegen-lib"              (as_list as_string)
@@ -363,7 +365,13 @@ let rec specs () : list<Getopt.opt> =
        "Admit SMT queries, unsafe! (default 'false')");
 
       ( noshort,
-       "codegen",
+        "admit_except",
+         OneArg (String, "[id]"),
+        "Admit all verification conditions, except those with query label <id>");
+
+
+      ( noshort,
+        "codegen",
         OneArg ((fun s -> String (parse_codegen s)),
                  "[OCaml|FSharp|Kremlin]"),
         "Generate code for execution");
@@ -457,7 +465,7 @@ let rec specs () : list<Getopt.opt> =
         ZeroArgs(fun () -> Bool true),
         "Print information regarding hints");
 
-        ( noshort,
+       ( noshort,
          "hint_file",
          OneArg (Path,
                  "[path]"),
@@ -642,8 +650,8 @@ let rec specs () : list<Getopt.opt> =
        ( noshort,
         "smt",
         OneArg (Path,
-                "[path]"),
-        "Path to the SMT solver (usually Z3, but could be any SMT2-compatible solver)");
+                 "[path]"),
+        "Path to the Z3 SMT solver (we could eventually support other solvers)");
 
        (noshort,
         "smtencoding.elim_box",
@@ -818,6 +826,7 @@ let docs () =
 //Additionaly, the --smt option is a security concern
 let settable = function
     | "admit_smt_queries"
+    | "admit_except"
     | "debug"
     | "debug_level"
     | "detail_errors"
@@ -1005,6 +1014,7 @@ let prepend_output_dir fname =
 
 let __temp_no_proj               s  = get___temp_no_proj() |> List.contains s
 let admit_smt_queries            () = get_admit_smt_queries           ()
+let admit_except                 () = get_admit_except                  ()
 let check_hints                  () = get_check_hints                 ()
 let codegen                      () = get_codegen                     ()
 let codegen_libs                 () = get_codegen_lib () |> List.map (fun x -> Util.split x ".")

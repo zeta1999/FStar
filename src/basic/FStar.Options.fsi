@@ -60,6 +60,7 @@ val add_light_off_file          : string  -> unit
 
 val __temp_no_proj              : string  -> bool
 val admit_smt_queries           : unit    -> bool
+val admit_except                : unit    -> option<string>
 val codegen                     : unit    -> option<string>
 val codegen_libs                : unit    -> list<list<string>>
 val debug_any                   : unit    -> bool
