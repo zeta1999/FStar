@@ -1169,6 +1169,21 @@ and tc_decl env se: list<sigelt> * list<sigelt> =
                   None
                 else
                   Some Inline_for_extraction
+            (* If the let-binding comes from a type abbreviation
+               we check that it returns a type *)
+            | TypeAbbrev ->
+              let lb = List.hd (snd lbs) in
+              let _, t = arrow_formals lb.lbtyp in
+              begin match Rel.try_teq false env t (fst (type_u ())) with
+                | None ->
+                  let err =
+                    BU.format2 "%s should be a type, not %s"
+                      (Print.lbname_to_string lb.lbname)
+                      (Print.term_to_string lb.lbtyp)
+                  in
+                  raise (Error (err, r))
+                | Some g -> Rel.force_trivial_guard env g ; Some TypeAbbrev
+              end
             | q ->
                 Some q
           ) quals in

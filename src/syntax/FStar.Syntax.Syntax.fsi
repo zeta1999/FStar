@@ -228,8 +228,9 @@ type qualifier =
   | Unopteq                                //for this type, use the unoptimized HasEq scheme
   | TotalEffect                            //an effect that forbids non-termination
   | Logic                                  //a symbol whose intended usage is in the refinement logic
-  | Reifiable
-  | Reflectable of lident                  // with fully qualified effect name
+  | Reifiable                              // An effect which can be reified
+  | Reflectable of lident                  // An effect which can be reflected
+                                           // with fully qualified effect name
   //the remaining qualifiers are internal: the programmer cannot write them
   | Discriminator of lident                //discriminator for a datacon l
   | Projector of lident * ident            //projector for datacon l's argument x
@@ -241,6 +242,7 @@ type qualifier =
   | Effect                                 //qualifier on a name that corresponds to an effect constructor
   | OnlyName                               //qualifier internal to the compiler indicating a dummy declaration which
                                            //is present only for name resolution and will be elaborated at typechecking
+  | TypeAbbrev                             // Qualifies a let-binding obtained from a type abbreviation
 
 type attribute = term
 

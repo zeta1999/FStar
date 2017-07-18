@@ -1654,14 +1654,21 @@ let rec desugar_tycon env (d: AST.decl) quals tcs : (env_t * sigelts) =
             | None ->
               if BU.for_some (function S.Effect -> true | _ -> false) quals
               then teff
-              else ktype
+              else tun
             | Some k -> desugar_term env' k in
         let t0 = t in
-        let quals = if quals |> BU.for_some (function S.Logic -> true | _ -> false)
-                    then quals
-                    else if t0.level = Formula
-                    then S.Logic::quals
-                    else quals in
+        let quals =
+          if BU.for_some (function S.Effect -> true | _ -> false) quals
+          then quals
+          else S.TypeAbbrev :: quals
+        in
+        let quals =
+          if quals |> BU.for_some (function S.Logic -> true | _ -> false)
+          then quals
+          else if t0.level = Formula
+          then S.Logic::quals
+          else quals
+        in
         let qlid = qualify env id in
         let se =
             if quals |> List.contains S.Effect
