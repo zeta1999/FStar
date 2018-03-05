@@ -126,9 +126,9 @@ let disjoint_not_in_both (a:eqtype) (s1:set a) (s2:set a) :
 type eqtype = a:Type0{hasEq a}
 
 val as_set': #a:eqtype -> list a -> Tot (set a)
-let rec as_set' #a l = match l with
-  | [] -> empty
-  | hd::tl -> union (singleton hd) (as_set' tl)
+let rec as_set' #a l x = match l with
+  | [] -> empty x
+  | hd::tl -> union (singleton hd) (as_set' tl) x
 
 unfold val as_set:  #a:eqtype -> l:list a -> Tot (set a)
 let as_set (#a:eqtype) (l:list a) = normalize_term (as_set' l)

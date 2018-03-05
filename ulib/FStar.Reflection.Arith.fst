@@ -106,7 +106,7 @@ private val fail : (#a:Type) -> string -> tm a
 private let fail #a s = fun i -> Inl s
 
 val as_arith_expr : term -> tm expr
-let rec as_arith_expr (t:term) =
+let rec as_arith_expr (t:term) i = ((
     let hd, tl = collect_app_ref t in
     // Admitting this subtyping on lists for now, it's provable, but tedious right now
     let tl : list ((a:term{a << t}) * aqualv) = admit(); tl in
@@ -151,10 +151,10 @@ let rec as_arith_expr (t:term) =
     | Tv_Const (C_Int i), _ ->
         return (Lit i)
     | _ ->
-        atom t
+        atom t) <: st -> Tac (either string (expr  *st))) i
 
 val is_arith_expr : term -> tm expr
-let is_arith_expr t =
+let is_arith_expr t i = (
   a <-- as_arith_expr t ;
   match a with
   | Atom _ t -> begin
@@ -164,7 +164,7 @@ let is_arith_expr t =
     | Tv_Var _, [] -> return a
     | _ -> fail ("not an arithmetic expression: (" ^ term_to_string t ^ ")")
   end
-  | _ -> return a
+  | _ -> return a) i
 
 // Cannot use this...
 // val is_arith_prop : term -> tm prop

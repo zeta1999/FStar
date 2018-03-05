@@ -29,10 +29,10 @@ val esubst : s:sub -> e:exp -> Tot (r:exp{renaming s /\ EVar? e ==> EVar? r})
 val sub_elam : s:sub -> Tot (r:sub{renaming s ==> renaming r})
 (decreases %[1;is_renaming s; 0; EVar 0])
 
-let rec sub_elam s =
+let rec sub_elam s n =
 let res : sub = fun x ->
 if x = 0 then EVar 0 else esubst (sub_einc) (s (x-1))
-in res
+in res n
 and esubst s e =
 match e with
 | EVar x -> s x

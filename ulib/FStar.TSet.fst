@@ -160,10 +160,10 @@ let lemma_mem_map (#a:Type) (#b:Type) (f:(a -> Tot b)) (s:set a) (x:b)
 
 #reset-options
 val as_set': #a:Type -> list a -> Tot (set a)
-let rec as_set' #a l =
+let rec as_set' #a l x =
   match l with
-  | [] -> empty
-  | hd::tl -> union (singleton hd) (as_set' tl)
+  | [] -> empty x
+  | hd::tl -> union (singleton hd) (as_set' tl) x
 
 
 (* unfold let as_set (#a:Type) (l:list a) : set a = *)
