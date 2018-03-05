@@ -7113,7 +7113,14 @@ and (build_let_rec_env :
           if uu____15268
           then false
           else
-            (let t = FStar_TypeChecker_Normalize.unfold_whnf env lbtyp  in
+            (let t =
+               FStar_TypeChecker_Normalize.normalize
+                 [FStar_TypeChecker_Normalize.EraseUniverses;
+                 FStar_TypeChecker_Normalize.Eager_unfolding;
+                 FStar_TypeChecker_Normalize.UnfoldUntil
+                       FStar_Syntax_Syntax.Delta_constant;
+                 FStar_TypeChecker_Normalize.NoFullNorm] env lbtyp
+                in
              let uu____15271 = FStar_Syntax_Util.arrow_formals_comp t  in
              match uu____15271 with
              | (formals,c) ->
