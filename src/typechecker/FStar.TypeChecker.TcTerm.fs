@@ -2089,7 +2089,7 @@ and build_let_rec_env top_level env lbs : list<letbinding> * env_t =
    let env0 = env in
    let termination_check_enabled lbname lbdef lbtyp =
      if Options.ml_ish () then false else
-     let t = N.unfold_whnf env lbtyp in
+     let t = N.normalize [N.EraseUniverses; N.UnfoldUntil Delta_constant; N.Eager_unfolding; N.NoFullNorm] env lbtyp in
      let formals, c = arrow_formals_comp t in
      let actuals, _, _ = abs_formals lbdef in
      if List.length formals < 1
