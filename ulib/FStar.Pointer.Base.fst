@@ -4614,13 +4614,14 @@ let is_null
   | _ -> false
 
 #set-options "--z3rlimit 100"
-let owrite
+let gowrite'
   (#a: typ)
   (b: pointer a)
   (z: otype_of_typ a)
-: HST.Stack unit
-  (requires (fun h -> live h b))
-  (ensures (fun h0 _ h1 ->
+  (h0: HS.mem)
+: Ghost HS.mem
+  (requires (live h0 b))
+  (ensures (fun h1 ->
     live h0 b /\
     live h1 b /\
     modifies_1 b h0 h1 /\ (
@@ -4628,16 +4629,12 @@ let owrite
     let (| _, c1 |) = HS.sel h1 g in
     path_sel c1 (Pointer?.p b) == z
   )))
-= let h0 = HST.get () in
-  let r = reference_of h0 b in
-  HST.witness_region (HS.frameOf r);
-  HST.witness_hsref r;
-  let v0 = !r in
+= let r = greference_of b in
+  let v0 = HS.sel h0 r in
   let (| t , c0 |) = v0 in
   let c1 = path_upd c0 (Pointer?.p b) z in
   let v1 = (| t, c1 |) in
-  r := v1;
-  let h1 = HST.get () in
+  let h1 = HS.upd h0 r v1 in
   let e () : Lemma (
    let gref = greference_of b in (
     HS.frameOf r == HS.frameOf gref /\
@@ -4668,8 +4665,44 @@ let owrite
     HS.lemma_sel_same_addr h1 r grefp;
     path_sel_upd_other' (Pointer?.p b) c0 z (Pointer?.p p)
   in
-  Classical.forall_intro_2 (fun t -> Classical.move_requires (f t))
-#set-options "--z3rlimit 40"
+  Classical.forall_intro_2 (fun t -> Classical.move_requires (f t));
+  h1
+
+let gowrite
+  (#a: typ)
+  (b: pointer a)
+  (z: otype_of_typ a)
+  (h0: HS.mem)
+: GTot HS.mem
+= if StrongExcludedMiddle.strong_excluded_middle (live h0 b)
+  then gowrite' b z h0
+  else h0 // dummy
+
+let owrite
+  (#a: typ)
+  (b: pointer a)
+  (z: otype_of_typ a)
+: HST.Stack unit
+  (requires (fun h -> live h b))
+  (ensures (fun h0 _ h1 ->
+    h1 == gowrite b z h0
+  ))
+= let h0 = HST.get () in
+  let r = reference_of h0 b in
+  HST.witness_region (HS.frameOf r);
+  HST.witness_hsref r;
+  let v0 = !r in
+  let (| t , c0 |) = v0 in
+  let c1 = path_upd c0 (Pointer?.p b) z in
+  let v1 = (| t, c1 |) in
+  r := v1;
+  let h1 = HST.get () in
+  ()
+
+let gwrite #a b z h =
+  gowrite b (ovalue_of_value a z) h
+
+let gwrite_spec #a b z h = ()
 
 let write #a b z =
   owrite b (ovalue_of_value a z)

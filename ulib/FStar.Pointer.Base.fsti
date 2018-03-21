@@ -2153,12 +2153,34 @@ val is_null
   (requires (fun h -> nlive h p))
   (ensures (fun h b h' -> h' == h /\ b == g_is_null p))
 
+val gwrite
+  (#a: typ)
+  (b: pointer a)
+  (z: type_of_typ a)
+  (h: HS.mem)
+: GTot HS.mem
+
+val gwrite_spec
+  (#a: typ)
+  (b: pointer a)
+  (z: type_of_typ a)
+  (h: HS.mem)
+: Lemma 
+  (requires (live h b))
+  (ensures (
+    let h' = gwrite b z h in
+    live h b /\ live h' b
+    /\ modifies_1 b h h'
+    /\ readable h' b
+    /\ gread h' b == z    
+  ))
+  [SMTPat (gwrite b z h)]
+
 val write: #a:typ -> b:pointer a -> z:type_of_typ a -> HST.Stack unit
   (requires (fun h -> live h b))
-  (ensures (fun h0 _ h1 -> live h0 b /\ live h1 b
-    /\ modifies_1 b h0 h1
-    /\ readable h1 b
-    /\ gread h1 b == z ))
+  (ensures (fun h0 _ h1 -> 
+    h1 == gwrite b z h0
+  ))
 
 (** Given our model, this operation is stateful, however it should be translated
     to a no-op by Kremlin, as the tag does not actually exist at runtime.
