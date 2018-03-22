@@ -1002,6 +1002,52 @@ let step_sel_upd_same
   (step_sel (step_upd m s v) s == v)
 = ()
 
+let ovalue_is_readable_weak
+  (t: typ)
+  (v: otype_of_typ t)
+: Tot bool
+= match t with
+  | TStruct l ->
+    let (v: ostruct l) = v in
+    Some? v
+  | TUnion l ->
+    let v : ounion l = v in
+    Some? v
+  | TArray len t ->
+    let (v: option (array len (otype_of_typ t))) = v in
+    Some? v
+  | TBase t ->
+    let (v: option (type_of_base_typ t)) = v in
+    Some? v
+  | TPointer t ->
+    let (v: option (pointer t)) = v in
+    Some? v
+  | TNPointer t ->
+    let (v: option (npointer t)) = v in
+    Some? v
+  | TBuffer t ->
+    let (v: option (buffer t)) = v in
+    Some? v
+
+let step_upd_sel_same
+  (#from: typ)
+  (#to: typ)
+  (m: otype_of_typ from)
+  (s: step from to)
+: Lemma
+  (requires (ovalue_is_readable_weak _ (step_sel m s)))
+  (ensures (step_upd m s (step_sel m s) == m))
+= match s with
+  | StepField l fd ->
+    let (m: ostruct l) = m in
+    let (Some ms) = m in
+    DM.equal_elim ms (DM.upd ms fd (step_sel m s))
+  | StepCell len _ i ->
+    let (m: option (array len (otype_of_typ to))) = m in
+    let (Some ms) = m in
+    Seq.lemma_eq_elim ms (Seq.upd ms (UInt32.v i) (step_sel m s))
+  | _ -> ()
+
 let rec path_upd
   (#from: typ)
   (#to: typ)
@@ -1034,6 +1080,22 @@ let rec path_sel_upd_same
     step_sel_upd_same s st v;
     let s' = step_upd s st v in
     path_sel_upd_same m p' s'
+
+let rec path_upd_sel_same
+  (#from: typ)
+  (#to: typ)
+  (m: otype_of_typ from)
+  (p: path from to)
+: Lemma
+  (requires (ovalue_is_readable_weak _ (path_sel m p)))
+  (ensures (path_upd m p (path_sel m p) == m))
+  (decreases p)
+= match p with
+  | PathBase -> ()
+  | PathStep through' to' p' st ->
+    let s = path_sel m p' in
+    step_upd_sel_same s st;
+    path_upd_sel_same m p'
 
 let rec path_concat
   (#from: typ)
