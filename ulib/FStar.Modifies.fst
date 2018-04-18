@@ -97,17 +97,20 @@ type loc' : Type =
       )))) ->
       loc'
 
-let loc = loc'
+let loc = Ghost.erased loc'
 
-let loc_none = Loc
+let loc_none = Ghost.hide (Loc
   (Ghost.hide (Set.empty))
   (Ghost.hide (Set.empty))
   (fun _ -> Set.empty)
   (Ghost.hide (Set.empty))
   (fun _ -> Set.empty)
   (fun _ _ -> false_elim ())
+)
 
-let loc_union s1 s2 =
+let loc_union s1 s2 = Ghost.elift1 (fun () ->
+  let s1 = Ghost.reveal s1 in
+  let s2 = Ghost.reveal s2 in
   if StrongExcludedMiddle.strong_excluded_middle (s1 == s2)
   then s1
   else
@@ -163,10 +166,11 @@ let loc_union s1 s2 =
     (Ghost.hide aux_regions)
     aux_addrs
     aux
+) (Ghost.hide ())
 
 let loc_union_idem s = ()
 
-let loc_buffer #t b =
+let loc_buffer #t b = Ghost.hide (
     Loc
       (Ghost.hide Set.empty)
       (Ghost.hide Set.empty)
@@ -174,8 +178,9 @@ let loc_buffer #t b =
       (Ghost.hide (Set.singleton (B.frameOf b)))
       (fun _ -> Set.singleton (B.as_addr b))
       (fun _ _ -> LocBuffer (abuffer_of_buffer b))
+ )
 
-let loc_addresses r n =
+let loc_addresses r n = Ghost.hide (
   Loc
     (Ghost.hide Set.empty)
     (Ghost.hide (Set.singleton r))
@@ -183,8 +188,9 @@ let loc_addresses r n =
     (Ghost.hide Set.empty)
     (fun _ -> Set.empty)
     (fun _ _ -> false_elim ())
+)
 
-let loc_regions r =
+let loc_regions r = Ghost.hide (
   Loc
     (Ghost.hide r)
     (Ghost.hide Set.empty)
@@ -192,6 +198,11 @@ let loc_regions r =
     (Ghost.hide Set.empty)
     (fun _ -> Set.empty)
     (fun _ _ -> false_elim ())
+)
+
+let loc_mreference #a #p b = Ghost.elift1 (fun () -> Ghost.reveal (loc_addresses (HS.frameOf b) (Set.singleton (HS.as_addr b)))) (Ghost.hide ())
+
+let loc_mreference_eq #a #p b = ()
 
 let abuffer_includes (larger smaller: abuffer) : GTot Type0 =
   larger.b_region == smaller.b_region /\
@@ -312,7 +323,8 @@ let addrs_of_loc_weak
   (l: loc)
   (r: HS.rid)
 : GTot (Set.set nat)
-= if Set.mem r (Ghost.reveal (Loc?.whole_regions l))
+= let l = Ghost.reveal l in
+  if Set.mem r (Ghost.reveal (Loc?.whole_regions l))
   then Set.complement Set.empty
   else if Set.mem r (Ghost.reveal (Loc?.addr_regions l))
   then Loc?.addrs l r
@@ -330,9 +342,10 @@ let addrs_of_loc
   (l: loc)
   (r: HS.rid)
 : GTot (Set.set nat)
-= Set.union
+= let l' = Ghost.reveal l in
+  Set.union
     (addrs_of_loc_weak l r)
-    (if Set.mem r (Ghost.reveal (Loc?.aux_regions l)) then Loc?.aux_addrs l r else Set.empty)
+    (if Set.mem r (Ghost.reveal (Loc?.aux_regions l')) then Loc?.aux_addrs l' r else Set.empty)
 
 let addrs_of_loc_union
   (l1 l2: loc)
@@ -343,16 +356,18 @@ let addrs_of_loc_union
 = assert (Set.equal (addrs_of_loc (loc_union l1 l2) r) (Set.union (addrs_of_loc l1 r) (addrs_of_loc l2 r)))
 
 let loc_includes s1 s2 =
-  let whole_regions1 = Ghost.reveal (Loc?.whole_regions s1) in
-  let whole_regions2 = Ghost.reveal (Loc?.whole_regions s2) in
-  let addr_regions1 = Ghost.reveal (Loc?.addr_regions s1) in
-  let addr_regions2 = Ghost.reveal (Loc?.addr_regions s2) in (
+  let s1' = Ghost.reveal s1 in
+  let s2' = Ghost.reveal s2 in
+  let whole_regions1 = Ghost.reveal (Loc?.whole_regions s1') in
+  let whole_regions2 = Ghost.reveal (Loc?.whole_regions s2') in
+  let addr_regions1 = Ghost.reveal (Loc?.addr_regions s1') in
+  let addr_regions2 = Ghost.reveal (Loc?.addr_regions s2') in (
     Set.subset whole_regions2 whole_regions1 /\
     Set.subset addr_regions2 (Set.union whole_regions1 addr_regions1) /\
     (
       forall (r: HS.rid) .
       (Set.mem r addr_regions2 /\ (~ (Set.mem r whole_regions1))) ==>
-      Set.subset (Loc?.addrs s2 r) (Loc?.addrs s1 r)
+      Set.subset (Loc?.addrs s2' r) (Loc?.addrs s1' r)
     ) /\ (
       forall (r: HS.rid) .
       Set.subset (addrs_of_loc_weak s2 r) (addrs_of_loc_weak s1 r)
@@ -361,15 +376,16 @@ let loc_includes s1 s2 =
       Set.subset (addrs_of_loc s2 r) (addrs_of_loc s1 r)
     ) /\ (
       forall (r: HS.rid) (n: nat) .
-      (Set.mem r (Ghost.reveal (Loc?.aux_regions s2)) /\ Set.mem n (Loc?.aux_addrs s2 r)) ==>
+      (Set.mem r (Ghost.reveal (Loc?.aux_regions s2')) /\ Set.mem n (Loc?.aux_addrs s2' r)) ==>
       (
         Set.mem n (addrs_of_loc_weak s1 r) \/ (
-        Set.mem r (Ghost.reveal (Loc?.aux_regions s1)) /\
-        Set.mem n (Loc?.aux_addrs s1 r) /\
-        loc_aux_includes (Loc?.aux s1 r n) (Loc?.aux s2 r n)
+        Set.mem r (Ghost.reveal (Loc?.aux_regions s1')) /\
+        Set.mem n (Loc?.aux_addrs s1' r) /\
+        loc_aux_includes (Loc?.aux s1' r n) (Loc?.aux s2' r n)
   ))))
 
 let loc_includes_refl s =
+  let s = Ghost.reveal s in
   let pre
     (r: HS.rid)
     (n: nat)
@@ -399,6 +415,8 @@ let loc_includes_trans s1 s2 s3 =
 
 let loc_includes_union_r s s1 s2 = ()
 
+#set-options "--z3rlimit 16"
+
 let loc_includes_union_l s1 s2 s =
   let u12 = loc_union s1 s2 in
   if StrongExcludedMiddle.strong_excluded_middle (s1 == s2)
@@ -414,6 +432,8 @@ let loc_includes_union_l s1 s2 s =
       (fun _ -> loc_includes_trans u12 s1 s)
       (fun _ -> loc_includes_trans u12 s2 s)
   end
+
+#reset-options
 
 let loc_includes_none s = ()
 
@@ -432,7 +452,11 @@ let loc_includes_region_addresses s r a = ()
 
 let loc_includes_region_region s1 s2 = ()
 
+#set-options "--z3rlimit 16"
+
 let loc_includes_region_union_l l s1 s2 = ()
+
+#reset-options
 
 
 (* Disjointness of two memory locations *)
@@ -522,7 +546,8 @@ let loc_aux_disjoint_sym'
 let regions_of_loc
   (s: loc)
 : GTot (Set.set HS.rid)
-= Set.union
+= let s = Ghost.reveal s in
+  Set.union
     (Ghost.reveal (Loc?.whole_regions s))
     (Set.union
       (Ghost.reveal (Loc?.addr_regions s))
@@ -546,16 +571,18 @@ let regions_of_loc_monotonic
 let loc_disjoint'
   (l1 l2: loc)
 : GTot Type0
-= Set.subset (Set.intersect (regions_of_loc l1) (Ghost.reveal (Loc?.whole_regions l2))) Set.empty /\
-  Set.subset (Set.intersect (regions_of_loc l2) (Ghost.reveal (Loc?.whole_regions l1))) Set.empty /\
+= let l1' = Ghost.reveal l1 in
+  let l2' = Ghost.reveal l2 in
+  Set.subset (Set.intersect (regions_of_loc l1) (Ghost.reveal (Loc?.whole_regions l2'))) Set.empty /\
+  Set.subset (Set.intersect (regions_of_loc l2) (Ghost.reveal (Loc?.whole_regions l1'))) Set.empty /\
   (forall (r: HS.rid) .
       Set.subset (Set.intersect (addrs_of_loc_weak l1 r) (addrs_of_loc l2 r)) Set.empty /\
       Set.subset (Set.intersect (addrs_of_loc l1 r) (addrs_of_loc_weak l2 r)) Set.empty
   ) /\
   (forall (r: HS.rid) (n: nat) .
-    (Set.mem r (Ghost.reveal (Loc?.aux_regions l1)) /\ Set.mem n (Loc?.aux_addrs l1 r) /\
-     Set.mem r (Ghost.reveal (Loc?.aux_regions l2)) /\ Set.mem n (Loc?.aux_addrs l2 r)) ==>
-    loc_aux_disjoint (Loc?.aux l1 r n) (Loc?.aux l2 r n)
+    (Set.mem r (Ghost.reveal (Loc?.aux_regions l1')) /\ Set.mem n (Loc?.aux_addrs l1' r) /\
+     Set.mem r (Ghost.reveal (Loc?.aux_regions l2')) /\ Set.mem n (Loc?.aux_addrs l2' r)) ==>
+    loc_aux_disjoint (Loc?.aux l1' r n) (Loc?.aux l2' r n)
   )
 
 let loc_disjoint = loc_disjoint'
@@ -612,18 +639,22 @@ let rec loc_aux_disjoint_loc_aux_includes
     loc_aux_disjoint_loc_aux_includes_buffer l1 l2 b3
 
 let loc_disjoint_includes p1 p2 p1' p2' =
+  let q1 = Ghost.reveal p1 in
+  let q2 = Ghost.reveal p2 in
+  let q1' = Ghost.reveal p1' in
+  let q2' = Ghost.reveal p2' in
   regions_of_loc_monotonic p1 p1';
   regions_of_loc_monotonic p2 p2';
   let pre = //A rather brutal way to force inlining of pre and post in VC of the continuation
     (fun r n ->
-      Set.mem r (Ghost.reveal (Loc?.aux_regions p1')) /\ Set.mem n (Loc?.aux_addrs p1' r) /\
-      Set.mem r (Ghost.reveal (Loc?.aux_regions p2')) /\ Set.mem n (Loc?.aux_addrs p2' r))
+      Set.mem r (Ghost.reveal (Loc?.aux_regions q1')) /\ Set.mem n (Loc?.aux_addrs q1' r) /\
+      Set.mem r (Ghost.reveal (Loc?.aux_regions q2')) /\ Set.mem n (Loc?.aux_addrs q2' r))
     <: Tot ((r:HS.rid) -> (n:nat) -> GTot Type0)
   in
   let post =
     (fun r n ->
        pre r n /\
-       loc_aux_disjoint (Loc?.aux p1' r n) (Loc?.aux p2' r n))
+       loc_aux_disjoint (Loc?.aux q1' r n) (Loc?.aux q2' r n))
     <: Tot ((r:HS.rid) -> (n:nat) -> GTot Type0)
   in
   let f
@@ -632,10 +663,10 @@ let loc_disjoint_includes p1 p2 p1' p2' =
   : Lemma
     (requires (pre r n))
     (ensures (post r n))
-  = let l1 = Loc?.aux p1 r n in
-    let l2 = Loc?.aux p2 r n in
-    let l1' = Loc?.aux p1' r n in
-    let l2' = Loc?.aux p2' r n in
+  = let l1 = Loc?.aux q1 r n in
+    let l2 = Loc?.aux q2 r n in
+    let l1' = Loc?.aux q1' r n in
+    let l2' = Loc?.aux q2' r n in
     loc_aux_disjoint_loc_aux_includes l1 l2 l2';
     loc_aux_disjoint_sym l1 l2';
     loc_aux_disjoint_loc_aux_includes l2' l1 l1';
@@ -674,12 +705,13 @@ let modifies_preserves_buffers
   (h1 h2: HS.mem)
 : GTot Type0
 = (forall (t: Type) (b: B.buffer t) .
+    let s' = Ghost.reveal s in  
     let r = B.frameOf b in
     let a = B.as_addr b in (
       B.live h1 b /\
       B.length b <> 0 /\
       (Set.mem r (regions_of_loc s) ==> ~ (Set.mem a (addrs_of_loc_weak s r))) /\
-      ((Set.mem r (Ghost.reveal (Loc?.aux_regions s)) /\ Set.mem a (Loc?.aux_addrs s r)) ==> loc_aux_disjoint_buffer (Loc?.aux s r a) (abuffer_of_buffer b))
+      ((Set.mem r (Ghost.reveal (Loc?.aux_regions s')) /\ Set.mem a (Loc?.aux_addrs s' r)) ==> loc_aux_disjoint_buffer (Loc?.aux s' r a) (abuffer_of_buffer b))
     ) ==> (
       B.live h2 b /\
       B.as_seq h2 b == B.as_seq h1 b
@@ -696,7 +728,11 @@ let modifies = modifies'
 
 let modifies_mreference_elim #t #pre b p h h' = ()
 
+#set-options "--z3rlimit 16"
+
 let modifies_buffer_elim #t1 b p h h' = ()
+
+#reset-options
 
 let modifies_refl s h = ()
 
@@ -767,14 +803,15 @@ let restrict_to_regions
   (l: loc)
   (rs: Set.set HS.rid)
 : GTot loc
-= let (Loc whole_regions addr_regions addrs aux_regions aux_addrs aux) = l in
-  Loc
+= let (Loc whole_regions addr_regions addrs aux_regions aux_addrs aux) = Ghost.reveal l in
+  Ghost.hide (Loc
     (Ghost.hide (Set.intersect (Ghost.reveal whole_regions) rs))
     (Ghost.hide (Set.intersect (Ghost.reveal addr_regions) rs))
     (fun r -> addrs r)
     (Ghost.hide (Set.intersect (Ghost.reveal aux_regions) rs))
     (fun r -> aux_addrs r)
     (fun r n -> aux r n)
+  )
 
 let regions_of_loc_restrict_to_regions
   (l: loc)
@@ -906,13 +943,15 @@ let modifies_buffer_none_modifies h1 h2 = ()
 let modifies_0_modifies h1 h2 =
   B.lemma_reveal_modifies_0 h1 h2
 
+#set-options "--z3rlimit 16"
+
 let modifies_1_modifies #a b h1 h2 =
   B.lemma_reveal_modifies_1 b h1 h2
 
 let modifies_2_modifies #a1 #a2 b1 b2 h1 h2 =
   B.lemma_reveal_modifies_2 b1 b2 h1 h2
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let modifies_3_modifies #a1 #a2 #a3 b1 b2 b3 h1 h2 =
   B.lemma_reveal_modifies_3 b1 b2 b3 h1 h2

@@ -12,7 +12,7 @@ val loc_none: loc
 
 val loc_union
   (s1 s2: loc)
-: GTot loc
+: Tot loc
 
 (** The following is useful to make Z3 cut matching loops with
 modifies_trans and modifies_refl *)
@@ -25,32 +25,39 @@ val loc_union_idem
 val loc_buffer
   (#t: Type)
   (b: B.buffer t)
-: GTot loc
+: Tot loc
 
 val loc_addresses
   (r: HS.rid)
   (n: Set.set nat)
-: GTot loc
+: Tot loc
 
 val loc_regions
   (r: Set.set HS.rid)
-: GTot loc
+: Tot loc
 
-let loc_mreference
+val loc_mreference
   (#a: Type)
   (#p: Preorder.preorder a)
   (b: HS.mreference a p)
-: GTot loc
-= loc_addresses (HS.frameOf b) (Set.singleton (HS.as_addr b))
+: Tot loc
+
+val loc_mreference_eq
+  (#a: Type)
+  (#p: Preorder.preorder a)
+  (b: HST.mreference a p)
+: Lemma
+  (loc_mreference b == loc_addresses (HS.frameOf b) (Set.singleton (HS.as_addr b)))
+  [SMTPat (loc_mreference b)]
 
 let loc_region_only
   (r: HS.rid)
-: GTot loc
+: Tot loc
 = loc_regions (Set.singleton r)
 
 let loc_all_regions_from
   (r: HS.rid)
-: GTot loc
+: Tot loc
 = loc_regions (HS.mod_set (Set.singleton r))
 
 
