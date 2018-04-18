@@ -22,10 +22,17 @@ let lemma_size (x:int) : Lemma (requires (UInt.size x n))
 let lseq (a: Type) (l: nat) : Type =
   (s: seq a { Seq.length s == l } )
 
+private
+type vec' (a: Type0) : nat -> Type0 =
+  | VNil : vec' a 0
+  | VCons : (#n: nat { n > 0 } ) -> (vec_hd: a) -> (vec_tl: vec' a (n - 1)) -> vec' a n
+
+let vec (a: Type0) (n: nat) : Tot Type0 = vec' a n
+
 (* Buffer general type, fully implemented on FStar's arrays *)
 noeq private type _buffer (a:Type) =
-  | MkBuffer: max_length:UInt32.t
-    -> content:reference (s: lseq a (v max_length))
+  | MkBuffer: (max_length:UInt32.t)
+    -> content:reference (s: vec a (v max_length))
     -> idx:UInt32.t
     -> length:UInt32.t{v idx + v length <= v max_length}
     -> _buffer a
@@ -33,13 +40,35 @@ noeq private type _buffer (a:Type) =
 (* Exposed buffer type *)
 type buffer (a:Type) = _buffer a
 
+let rec lseq_of_vec (#a: Type0) (#n: nat) (l: vec a n) : Tot (lseq a n) =
+  if n = 0
+  then Seq.createEmpty
+  else Seq.cons (VCons?.vec_hd l) (lseq_of_vec (VCons?.vec_tl l))
+
+let rec vec_of_lseq (#a: Type0) (#n: nat) (l: lseq a n) : Tot (vec a n) =
+  if n = 0
+  then VNil
+  else VCons (Seq.head l) (vec_of_lseq (Seq.tail l))
+
+assume
+val lseq_of_vec_of_lseq (#a: Type0) (#n: nat) (l: lseq a n) : Lemma
+  (requires True)
+  (ensures (Seq.equal (lseq_of_vec (vec_of_lseq l)) l))
+  [SMTPat (lseq_of_vec (vec_of_lseq l))]
+
+assume
+val vec_of_lseq_of_vec (#a: Type0) (#n: nat) (l: vec a n) : Lemma
+  (requires True)
+  (ensures (vec_of_lseq (lseq_of_vec l) == l))
+  [SMTPat (vec_of_lseq (lseq_of_vec l))]
+
 (* Ghost getters for specifications *)
 // TODO: remove `contains` after replacing all uses with `live`
 let contains #a h (b:buffer a) : GTot Type0 = HS.contains h b.content
 let unused_in #a (b:buffer a) h : GTot Type0 = HS.unused_in b.content h
 
 (* In most cases `as_seq` should be used instead of this one. *)
-let sel #a h (b:buffer a) : GTot (seq a) = HS.sel h b.content
+let sel #a h (b:buffer a) : GTot (seq a) = lseq_of_vec (HS.sel h b.content)
 
 let max_length #a (b:buffer a) : GTot nat = v b.max_length
 let length #a (b:buffer a) : GTot nat = v b.length
@@ -47,7 +76,7 @@ let idx #a (b:buffer a) : GTot nat = v b.idx
 
 //17-01-04 rename to container or ref? 
 let content #a (b:buffer a) :
-  GTot (reference (lseq a (max_length b))) = b.content
+  GTot (reference (vec a (max_length b))) = b.content
 
 (* Lifting from buffer to reference *)
 let as_ref #a (b:buffer a) = as_ref (content b)
@@ -105,7 +134,7 @@ let includes_trans #a (x y z: buffer a)
 (* Disjointness between two buffers *)
 let disjoint #a #a' (x:buffer a) (y:buffer a') : GTot Type0 =
   frameOf x =!= frameOf y \/ as_addr x =!= as_addr y
-  \/ (a == a' /\ as_addr x == as_addr y /\ frameOf x == frameOf y /\ x.max_length == y.max_length /\
+  \/ (as_addr x == as_addr y /\ frameOf x == frameOf y /\ x.max_length == y.max_length /\
      (idx x + length x <= idx y \/ idx y + length y <= idx x))
 
 (* Disjointness is symmetric *)
@@ -798,8 +827,8 @@ val create: #a:Type -> init:a -> len:UInt32.t -> StackInline (buffer a)
      /\ modifies_0 h0 h1
      /\ as_seq h1 b == Seq.create (v len) init))
 let create #a init len =
-  let content: reference (lseq a (v len)) =
-     salloc (Seq.create (v len) init) in
+  let content: reference (vec a (v len)) =
+     salloc (vec_of_lseq (Seq.create (v len) init)) in
   let b = MkBuffer len content 0ul len in
   let h = HST.get() in
   assert (Seq.equal (as_seq h b) (sel h b));
@@ -827,14 +856,14 @@ val createL: #a:Type0 -> init:list a -> StackInline (buffer a)
      /\ modifies_0 h0 h1
      /\ as_seq h1 b == Seq.of_list init
      /\ q #a len b))
-#set-options "--initial_fuel 1 --max_fuel 1" //the normalize_term (length init) in the pre-condition will be unfolded
+#set-options "--initial_fuel 2 --max_fuel 2" //the normalize_term (length init) in the pre-condition will be unfolded
 	                                     //whereas the L.length init below will not
 let createL #a init =
   let len = UInt32.uint_to_t (FStar.List.Tot.length init) in
   let s = Seq.of_list init in
   lemma_of_list_length s init;
-  let content: reference (lseq a (v len)) =
-    salloc (Seq.of_list init) in
+  let content: reference (vec a (v len)) =
+    salloc (vec_of_lseq (Seq.of_list init)) in
   let b = MkBuffer len content 0ul len in
   let h = HST.get() in
   assert (Seq.equal (as_seq h b) (sel h b));
@@ -862,8 +891,8 @@ private let rcreate_common (#a:Type) (r:rid) (init:a) (len:UInt32.t) (mm:bool)
                  (ensures  (fun h0 b h1 -> rcreate_post_common r init len b h0 h1 /\
 		                        is_mm b.content == mm))
   = let h0 = HST.get() in
-    let s = Seq.create (v len) init in
-    let content: reference (lseq a (v len)) =
+    let s = vec_of_lseq (Seq.create (v len) init) in
+    let content: reference (vec a (v len)) =
       if mm then ralloc_mm r s else ralloc r s
     in
     let b = MkBuffer len content 0ul len in
@@ -927,7 +956,7 @@ val to_seq: #a:Type -> b:buffer a -> l:UInt32.t{v l <= length b} -> STL (seq a)
 let to_seq #a b l =
   let s = !b.content in
   let i = v b.idx in
-  Seq.slice s i (i + v l)
+  Seq.slice (lseq_of_vec s) i (i + v l)
 
 
 // ocaml-only, used for conversions to Platform.bytes
@@ -938,7 +967,7 @@ val to_seq_full: #a:Type -> b:buffer a -> ST (seq a)
 let to_seq_full #a b =
   let s = !b.content in
   let i = v b.idx in
-  Seq.slice s i (i + v b.length)
+  Seq.slice (lseq_of_vec s) i (i + v b.length)
 
 val index: #a:Type -> b:buffer a -> n:UInt32.t{v n < length b} -> Stack a
   (requires (fun h -> live h b))
@@ -946,15 +975,14 @@ val index: #a:Type -> b:buffer a -> n:UInt32.t{v n < length b} -> Stack a
     /\ z == Seq.index (as_seq h0 b) (v n)))
 let index #a b n =
   let s = !b.content in
-  Seq.index s (v b.idx + v n)
+  Seq.index (lseq_of_vec s) (v b.idx + v n)
 
-(** REMARK: the proof of this lemma relies crucially on the `a == a'` condition
-//     in `disjoint`, and on the pattern in `Seq.slice_upd` *)
+(** REMARK: the proof of this lemma relies crucially on the pattern in `Seq.slice_upd` *)
 private let lemma_aux_0
   (#a:Type) (b:buffer a) (n:UInt32.t{v n < length b}) (z:a) (h0:mem) (tt:Type) (bb:buffer tt)
   :Lemma (requires (live h0 b /\ live h0 bb /\ disjoint b bb))
          (ensures  (live h0 b /\ live h0 bb /\
-	            (let h1 = HS.upd h0 b.content (Seq.upd (sel h0 b) (idx b + v n) z) in
+	            (let h1 = HS.upd h0 b.content (vec_of_lseq (Seq.upd (sel h0 b) (idx b + v n) z)) in
 		     as_seq h0 bb == as_seq h1 bb)))
   = Heap.lemma_distinct_addrs_distinct_preorders ();
     Heap.lemma_distinct_addrs_distinct_mm ()
@@ -965,7 +993,7 @@ private let lemma_aux_1
   :Lemma (requires (live h0 b))
          (ensures  (live h0 b /\
 	            (forall (bb:buffer tt). (live h0 bb /\ disjoint b bb) ==>
-		                       (let h1 = HS.upd h0 b.content (Seq.upd (sel h0 b) (idx b + v n) z) in
+		                       (let h1 = HS.upd h0 b.content (vec_of_lseq (Seq.upd (sel h0 b) (idx b + v n) z)) in
 		                        as_seq h0 bb == as_seq h1 bb))))
   = let open FStar.Classical in
     forall_intro (move_requires (lemma_aux_0 b n z h0 tt))
@@ -977,7 +1005,7 @@ private let lemma_aux_2
   :Lemma (requires (live h0 b))
          (ensures  (live h0 b /\
 	            (forall (tt:Type) (bb:buffer tt). (live h0 bb /\ disjoint b bb) ==>
-		                                 (let h1 = HS.upd h0 b.content (Seq.upd (sel h0 b) (idx b + v n) z) in
+		                                 (let h1 = HS.upd h0 b.content (vec_of_lseq (Seq.upd (sel h0 b) (idx b + v n) z)) in
 		                                  as_seq h0 bb == as_seq h1 bb))))
   = let open FStar.Classical in
     forall_intro (move_requires (lemma_aux_1 b n z h0))
@@ -986,8 +1014,8 @@ private val lemma_aux: #a:Type -> b:buffer a -> n:UInt32.t{v n < length b} -> z:
   -> h0:mem -> Lemma
   (requires (live h0 b))
   (ensures (live h0 b
-    /\ modifies_1 b h0 (HS.upd h0 b.content (Seq.upd (sel h0 b) (idx b + v n) z)) ))
-  [SMTPat (HS.upd h0 b.content (Seq.upd (sel h0 b) (idx b + v n) z))]
+    /\ modifies_1 b h0 (HS.upd h0 b.content (vec_of_lseq (Seq.upd (sel h0 b) (idx b + v n) z))) ))
+  [SMTPat (HS.upd h0 b.content (vec_of_lseq (Seq.upd (sel h0 b) (idx b + v n) z)))]
 let lemma_aux #a b n z h0 = lemma_aux_2 b n z h0
 
 abstract val upd: #a:Type -> b:buffer a -> n:UInt32.t -> z:a -> Stack unit
@@ -997,9 +1025,9 @@ abstract val upd: #a:Type -> b:buffer a -> n:UInt32.t -> z:a -> Stack unit
     /\ as_seq h1 b == Seq.upd (as_seq h0 b) (v n) z ))
 let upd #a b n z =
   let h0 = HST.get () in
-  let s0 = !b.content in
-  let s = Seq.upd s0 (v b.idx + v n) z in
-  b.content := s;
+  let s0 = lseq_of_vec !b.content in
+  let s = (Seq.upd s0 (v b.idx + v n) z) in
+  b.content := vec_of_lseq s;
   lemma_aux b n z h0;
   let h = HST.get() in
   Seq.lemma_eq_intro (as_seq h b) (Seq.slice s (idx b) (idx b + length b));
@@ -1096,6 +1124,8 @@ let eq_lemma2 #a b1 b2 len h =
   cut (forall (j:nat). j < v len ==> get h b1 j == Seq.index s1 j);
   cut (forall (j:nat). j < v len ==> get h b2 j == Seq.index s2 j)
 
+#reset-options "--z3rlimit 80"
+
 (** Corresponds to memcmp for `eqtype` *)
 val eqb: #a:eqtype -> b1:buffer a -> b2:buffer a
   -> len:UInt32.t{v len <= length b1 /\ v len <= length b2}
@@ -1111,6 +1141,8 @@ let rec eqb #a b1 b2 len =
       eqb b1 b2 len'
     else
       false
+
+#reset-options "--z3rlimit 20"
 
 (**
 //     Defining operators for buffer accesses as specified at

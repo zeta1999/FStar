@@ -907,12 +907,12 @@ let modifies_0_modifies h1 h2 =
   B.lemma_reveal_modifies_0 h1 h2
 
 let modifies_1_modifies #a b h1 h2 =
-  B.lemma_reveal_modifies_1 b h1 h2 // FAIL: types of elements...
+  B.lemma_reveal_modifies_1 b h1 h2
 
 let modifies_2_modifies #a1 #a2 b1 b2 h1 h2 =
   B.lemma_reveal_modifies_2 b1 b2 h1 h2
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let modifies_3_modifies #a1 #a2 #a3 b1 b2 b3 h1 h2 =
   B.lemma_reveal_modifies_3 b1 b2 b3 h1 h2
