@@ -50,17 +50,37 @@ let rec vec_of_lseq (#a: Type0) (#n: nat) (l: lseq a n) : Tot (vec a n) =
   then VNil
   else VCons (Seq.head l) (vec_of_lseq (Seq.tail l))
 
-assume
+#set-options "--initial_fuel 1 --max_fuel 1"
+
 val lseq_of_vec_of_lseq (#a: Type0) (#n: nat) (l: lseq a n) : Lemma
   (requires True)
   (ensures (Seq.equal (lseq_of_vec (vec_of_lseq l)) l))
   [SMTPat (lseq_of_vec (vec_of_lseq l))]
 
-assume
+let rec lseq_of_vec_of_lseq #a #n l =
+  if n = 0
+  then ()
+  else begin
+    lseq_of_vec_of_lseq #_ #(n - 1) (Seq.tail l);
+    Seq.cons_head_tail (lseq_of_vec (vec_of_lseq l));
+    Seq.cons_head_tail l
+  end
+
 val vec_of_lseq_of_vec (#a: Type0) (#n: nat) (l: vec a n) : Lemma
   (requires True)
   (ensures (vec_of_lseq (lseq_of_vec l) == l))
   [SMTPat (vec_of_lseq (lseq_of_vec l))]
+
+let rec vec_of_lseq_of_vec #a #n l =
+  if n = 0
+  then ()
+  else begin
+    Seq.cons_head_tail (lseq_of_vec l);
+    vec_of_lseq_of_vec #_ #(n - 1) (VCons?.vec_tl l);
+    Seq.lemma_tl (VCons?.vec_hd l) (lseq_of_vec (VCons?.vec_tl l))
+  end
+
+#set-options "--initial_fuel 0 --max_fuel 0"
 
 (* Ghost getters for specifications *)
 // TODO: remove `contains` after replacing all uses with `live`
