@@ -67,7 +67,7 @@ let set_nonempty
 = exists (i: t) . Set.mem i s
 
 noeq
-type loc' : Type =
+type loc_ : Type =
   | Loc:
       (whole_regions: Ghost.erased (Set.set HS.rid)) ->
       (addr_regions: Ghost.erased (Set.set HS.rid)) ->
@@ -95,9 +95,9 @@ type loc' : Type =
 	(ensures (fun y ->
           loc_aux_in_addr y r n
       )))) ->
-      loc'
+      loc_
 
-let loc = Ghost.erased loc'
+let loc' = loc_
 
 let loc_none = Ghost.hide (Loc
   (Ghost.hide (Set.empty))

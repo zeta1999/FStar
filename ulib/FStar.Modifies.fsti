@@ -6,7 +6,10 @@ module B = FStar.Buffer
 
 (*** The modifies clause *)
 
-val loc : Type u#0
+val loc' : Type0
+
+inline_for_extraction
+let loc : Type0 = Ghost.erased loc'
 
 val loc_none: loc
 
