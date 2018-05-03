@@ -16,3 +16,6 @@ RUN make -C src -j ${MAXTHREADS} utest-prelude >> ${BUILDLOGFILE} && echo "succe
 RUN echo $(date -u '+%Y-%m-%d %H:%M:%S') >> ${BUILDLOGFILE}
 
 
+
+
+
