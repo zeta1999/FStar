@@ -65,7 +65,11 @@ let run t p =
 
 let run_safe t p =
     try t.tac_f p
-    with | e -> Failed (BU.message_of_exn e, p)
+    with | Errors.Err (_, msg)
+         | Errors.Error (_, msg, _) ->
+           Failed (msg, p)
+         | e ->
+           Failed (BU.message_of_exn e, p)
 
 let rec log ps (f : unit -> unit) : unit =
     if ps.tac_verb_dbg
@@ -215,7 +219,8 @@ let mlog f (cont : unit -> tac<'a>) : tac<'a> =
 let fail (msg:string) =
     mk_tac (fun ps ->
         if Env.debug ps.main_context (Options.Other "TacFail")
-        then dump_proofstate ps ("TACTIC FAILING: " ^ msg);
+        then dump_proofstate ps (BU.format2 "TACTIC FAILING: %s\nStack trace follows <<\n%s\n>>\n"
+                                                msg (BU.stack_dump ()));
         Failed (msg, ps)
     )
 
@@ -502,7 +507,16 @@ let __tc (e : env) (t : term) : tac<(term * typ * guard_t)> =
     bind get (fun ps ->
     mlog (fun () -> BU.print1 "Tac> __tc(%s)\n" (Print.term_to_string t)) (fun () ->
     let e = {e with uvar_subtyping=false} in
-    try ret (ps.main_context.type_of e t)
+    try bind (if Options.use_two_phase_tc ()
+              then let t, _,  _ = ps.main_context.type_of ({ e with lax = true; phase1 = true }) t in
+                   ret t
+              else ret t) (fun t ->
+        mlog (fun () -> BU.print1 "Tac> __tc, t.1 = %s\n" (Print.term_to_string t)) (fun () ->
+        let t, ty, g = ps.main_context.type_of e t in
+        mlog (fun () -> BU.print1 "Tac> __tc, t.2 = %s\n"  (Print.term_to_string t)) (fun () ->
+        mlog (fun () -> BU.print1 "Tac> __tc, ty.2 = %s\n" (Print.term_to_string ty)) (fun () ->
+        mlog (fun () -> BU.print1 "Tac> __tc, g.2 = %s\n"  (Rel.guard_to_string e g)) (fun () ->
+        ret (t, ty, g))))))
     with | Errors.Err (_, msg)
          | Errors.Error (_, msg, _) -> begin
            fail3 "Cannot type %s in context (%s). Error = (%s)" (tts e t)
@@ -790,8 +804,12 @@ let t_exact set_expected_typ tm : tac<unit> = wrap_err "exact" <|
     bind (trytac' (bind (norm [EMB.Delta]) (fun _ ->
                    bind (refine_intro ()) (fun _ ->
                    __exact_now set_expected_typ tm)))) (function
-    | Inr r -> ret r
-    | Inl _ -> fail e)))) // keep original error
+    | Inr r ->
+        mlog (fun () -> BU.print_string "__exact_now failed after refining too\n") (fun _ ->
+        ret r)
+    | Inl _ ->
+        mlog (fun () -> BU.print_string "__exact_now: was not a refinement\n") (fun _ ->
+        fail e)))))
 
 let rec mapM (f : 'a -> tac<'b>) (l : list<'a>) : tac<list<'b>> =
     match l with
