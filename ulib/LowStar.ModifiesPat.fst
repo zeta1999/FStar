@@ -20,23 +20,16 @@ let loc_disjoint_union_r'
 
 (* Patterns on modifies clauses *)
 
-let modifies_refl'
-  (s: loc)
-  (h: HS.mem)
-: Lemma
-  (modifies s h h)
-  [SMTPat (modifies s h h)]
-= modifies_refl s h
+abstract
+let modifies_left (l: loc) (h1 h2: HS.mem) : GTot Type0 =
+  modifies l h1 h2
 
-let modifies_loc_includes'
-  (s1: loc)
-  (h h': HS.mem)
-  (s2: loc)
-: Lemma
-  (requires (modifies s2 h h' /\ loc_includes s1 s2))
-  (ensures (modifies s1 h h'))
-  [SMTPat (modifies s1 h h'); SMTPat (modifies s2 h h')]
-= modifies_loc_includes s1 h h' s2
+inline_for_extraction
+let modifies_left_intro () : HST.Stack unit
+  (requires (fun h -> True))
+  (ensures (fun h _ h' -> h' == h /\ modifies_left loc_none h h))
+= let h = HST.get () in
+  modifies_refl loc_none h
 
 let modifies_trans'
   (s12: loc)
@@ -44,10 +37,20 @@ let modifies_trans'
   (s23: loc)
   (h3: HS.mem)
 : Lemma
-  (requires (modifies s12 h1 h2 /\ modifies s23 h2 h3))
-  (ensures (modifies (loc_union s12 s23) h1 h3))
-  [SMTPat (modifies s12 h1 h2); SMTPat (modifies s23 h2 h3)]
+  (requires (modifies_left s12 h1 h2 /\ modifies s23 h2 h3))
+  (ensures (modifies_left (loc_union s12 s23) h1 h3))
+  [SMTPat (modifies_left s12 h1 h2); SMTPat (modifies s23 h2 h3)]
 = modifies_trans s12 h1 h2 s23 h3
+
+let modifies_loc_includes'
+  (s1: loc)
+  (h h': HS.mem)
+  (s2: loc)
+: Lemma
+  (requires (modifies_left s2 h h' /\ loc_includes s1 s2))
+  (ensures (modifies s1 h h'))
+  [SMTPat (modifies s1 h h'); SMTPat (modifies_left s2 h h')]
+= modifies_loc_includes s1 h h' s2
 
 let no_upd_fresh_region'
   (r:HS.rid)
@@ -95,6 +98,16 @@ let modifies_inert_intro
   (requires (modifies s h1 h2))
   (ensures (modifies_inert s h1 h2))
   [SMTPat (modifies s h1 h2)]
+= ()
+
+abstract
+let modifies_left_inert
+  (s: loc)
+  (h1 h2: HS.mem)
+: Lemma
+  (requires (modifies_left s h1 h2))
+  (ensures (modifies_inert s h1 h2))
+  [SMTPat (modifies_left s h1 h2)]
 = ()
 
 let modifies_inert_live_region
