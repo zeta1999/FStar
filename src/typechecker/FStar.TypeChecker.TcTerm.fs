@@ -361,6 +361,7 @@ and tc_maybe_toplevel_term env (e:term) : term                  (* type-checked 
         (* Typecheck the antiquotes expecting a term *)
         let aqs = qi.antiquotes in
         let env_tm = Env.set_expected_typ env t_term in
+        let env_tm = { env_tm with lax_universes = true } in
         let (aqs_rev, guard) =
             List.fold_right (fun (bv, tm) (aqs_rev, guard) ->
                                     let tm, _, g = tc_term env_tm tm in
@@ -380,7 +381,7 @@ and tc_maybe_toplevel_term env (e:term) : term                  (* type-checked 
 
         (* Typechecked the quoted term just to elaborate it *)
         let env', _ = Env.clear_expected_typ env in
-        let qt, _, _ = tc_term ({ env' with lax = true }) qt in
+        let qt, _, _ = tc_term ({ env' with lax = true ; lax_universes = true }) qt in
         let t = mk (Tm_quoted (qt, qi)) None top.pos in
 
         let t, lc, g = value_check_expected_typ env top (Inr (U.lcomp_of_comp c)) Env.trivial_guard in

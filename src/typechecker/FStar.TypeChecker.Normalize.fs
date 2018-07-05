@@ -972,8 +972,32 @@ let rec norm : cfg -> env -> stack -> term -> term =
             | None -> rebuild cfg env stack t
             end
 
-          | Tm_quoted _ ->
-            rebuild cfg env stack (closure_as_term cfg env t)
+          | Tm_quoted (qt, qi) ->
+            begin match qi.qkind with
+            | Quote_dynamic ->
+                let cfg = { cfg with steps =
+                            { default_steps with allow_unbound_universes = true
+                                               ; unascribe = true
+                                               ; unmeta = true }
+                                   ; delta_level = [Unfold delta_constant] }
+                in
+                (* This is a bit of a hack, we only want to normalize
+                 * the quotation when we are evaluating a metaprogram,
+                 * but not when we are, say, simplifying an inferred WP.
+                 * So, in absence of a `computing` flag, check the 
+                 * unfolding depth, which works. *)
+                let qt = if cfg.steps.unfold_until = Some delta_constant
+                         then norm cfg env [] qt
+                         else qt
+                in
+                let t = mk (Tm_quoted (qt, qi)) t.pos in
+                rebuild cfg env stack t
+
+            | Quote_static ->
+                let qi = S.on_antiquoted (norm cfg env []) qi in
+                let t = mk (Tm_quoted (qt, qi)) t.pos in
+                rebuild cfg env stack (closure_as_term cfg env t)
+            end
 
           | Tm_app(hd, args)
             when not (cfg.steps.no_full_norm)
