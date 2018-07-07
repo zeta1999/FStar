@@ -307,6 +307,38 @@ let rec iapp (cfg : Cfg.cfg) (f:t) (args:args) : t =
   | Lazy _ | Constant _ | Univ _ | Type_t _ | Unknown | Refinement _ | Arrow _ ->
     failwith ("NBE ill-typed application: " ^ t_to_string f)
 
+and mk_primop_interp (cfg:Cfg.cfg) (bs:list<t>) (fvar:fv) (prim_step : Cfg.primitive_step) : t =
+    let debug = debug cfg in
+    let callbacks = {
+      iapp = iapp cfg;
+      translate = translate cfg bs;
+    }
+    in
+    match prim_step.auto_reflect with
+    | None ->
+        let arity = prim_step.univ_arity + prim_step.arity in
+        Lam ((fun args -> let args' = (List.map NBETerm.as_arg args) in
+             match prim_step.interpretation_nbe callbacks args' with
+             | Some x -> debug (fun () -> BU.print2 "Primitive operator %s returned %s\n" (P.fv_to_string fvar) (t_to_string x));
+                        x
+             | None -> debug (fun () -> BU.print1 "Primitive operator %s failed\n" (P.fv_to_string fvar));
+                      iapp cfg (mkFV fvar [] []) args'),
+             (let f (_:int) _ : t * S.aqual = (Constant Unit, None) in FStar.Common.tabulate arity f),
+             arity, None)
+    | Some extra_arity ->
+        let arity = prim_step.univ_arity + prim_step.arity - extra_arity in
+        Lam ((fun args -> let args' = (List.map NBETerm.as_arg args) in
+             Reflect (Lam ((fun args'' -> let args' = args' @ (List.map NBETerm.as_arg args'') in
+                             match prim_step.interpretation_nbe callbacks args' with
+                             | Some x -> debug (fun () -> BU.print2 "Primitive operator %s returned %s\n" (P.fv_to_string fvar) (t_to_string x));
+                                        x
+                             | None -> debug (fun () -> BU.print1 "Primitive operator %s failed\n" (P.fv_to_string fvar));
+                                      iapp cfg (mkFV fvar [] []) args'),
+                             (let f (_:int) _ : t * S.aqual = (Constant Unit, None) in FStar.Common.tabulate extra_arity f),
+                             extra_arity, None)
+            )), (let f (_:int) _ : t * S.aqual = (Constant Unit, None) in FStar.Common.tabulate arity f),
+            arity, None)
+
 and translate_fv (cfg: Cfg.cfg) (bs:list<t>) (fvar:fv): t =
    let debug = debug cfg in
    let qninfo = Env.lookup_qname (Cfg.cfg_env cfg) (S.lid_of_fv fvar) in
@@ -320,21 +352,8 @@ and translate_fv (cfg: Cfg.cfg) (bs:list<t>) (fvar:fv): t =
        debug (fun () -> BU.print1 "(1) Decided to not unfold %s\n" (P.fv_to_string fvar));
        begin match Cfg.find_prim_step cfg fvar with
        | Some prim_step when prim_step.strong_reduction_ok (* TODO : || not cfg.strong *) ->
-         let arity = prim_step.arity + prim_step.univ_arity in
          debug (fun () -> BU.print1 "Found a primop %s\n" (P.fv_to_string fvar));
-         Lam ((fun args -> let args' = (List.map NBETerm.as_arg args) in
-              let callbacks = {
-                iapp = iapp cfg;
-                translate = translate cfg bs;
-              }
-              in
-              match prim_step.interpretation_nbe callbacks args' with
-              | Some x -> debug (fun () -> BU.print2 "Primitive operator %s returned %s\n" (P.fv_to_string fvar) (t_to_string x));
-                         x
-              | None -> debug (fun () -> BU.print1 "Primitive operator %s failed\n" (P.fv_to_string fvar));
-                       iapp cfg (mkFV fvar [] []) args'),
-              (let f (_:int) _ : t * S.aqual = (Constant Unit, None) in FStar.Common.tabulate arity f),
-              arity, None)
+         mk_primop_interp cfg bs fvar prim_step
 
        | Some _ -> debug (fun () -> BU.print1 "(2) Decided to not unfold %s\n" (P.fv_to_string fvar)); mkFV fvar [] []
        | _      -> debug (fun () -> BU.print1 "(3) Decided to not unfold %s\n" (P.fv_to_string fvar)); mkFV fvar [] []
@@ -422,6 +441,7 @@ and translate (cfg:Cfg.cfg) (bs:list<t>) (e:term) : t =
     let debug = debug cfg in
     debug (fun () -> BU.print2 "Term: %s - %s\n" (P.tag_of_term (SS.compress e)) (P.term_to_string (SS.compress e)));
     debug (fun () -> BU.print1 "BS list: %s\n" (String.concat ";; " (List.map (fun x -> t_to_string x) bs)));
+    debug (fun () -> BU.print1 "> reifying = %s\n" (BU.string_of_bool cfg.reifying));
 
     match (SS.compress e).n with
     | Tm_delayed (_, _) ->
