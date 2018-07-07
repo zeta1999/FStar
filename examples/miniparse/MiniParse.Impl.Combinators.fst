@@ -15,7 +15,7 @@ let parse32_ret
 = fun _ _ -> let h = HST.get () in Some (x, 0ul)
 
 inline_for_extraction
-let parse32_and_then
+let parse32_and_then'
   (k0: parser_kind)
   (#k: parser_kind)
   (#t:Type)
@@ -38,6 +38,19 @@ let parse32_and_then
     end
   | _ -> None
 
+inline_for_extraction
+let parse32_and_then
+  (#k: parser_kind)
+  (#t:Type)
+  (#p:parser' k t)
+  (p32: parser32 p)
+  (#k' : parser_kind)
+  (#t':Type)
+  (p': (t -> Tot (parser' k' t')))
+  (p32' : ((x: t) -> Tot (parser32 (p' x))))
+: Tot (parser32 (and_then p p'))
+= parse32_and_then' false p32 p' () p32'
+
 #set-options "--z3rlimit 16"
 
 inline_for_extraction
@@ -51,7 +64,7 @@ let parse32_nondep_then
   (#p2: parser' k2 t2)
   (p2' : parser32 p2)
 : Tot (parser32 (nondep_then p1 p2))
-= parse32_and_then (nondep_then_kind k1 k2) p1' _ () (fun x -> parse32_and_then (nondep_then_kind k2 true) p2' _ () (fun y -> parse32_ret (x, y)))
+= parse32_and_then' (nondep_then_kind k1 k2) p1' _ () (fun x -> parse32_and_then' (nondep_then_kind k2 true) p2' _ () (fun y -> parse32_ret (x, y)))
 
 let seq_append_slice
   (#t: Type)

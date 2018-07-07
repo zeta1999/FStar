@@ -454,13 +454,13 @@ let and_then_strong
   (ensures (fun _ -> True))
 = and_then' true p p'
 
-let and_then_weak
-  (#k1: parser_kind)
+let and_then
+  (#k: parser_kind)
   (#t:Type)
-  (p:parser t)
+  (p:parser' k t)
+  (#k': parser_kind)
   (#t':Type)
-  (#k2: parser_kind)
-  (p': (t -> Tot (parser t')))
+  (p': (t -> Tot (parser' k' t')))
 : Tot (parser' false t')
 = and_then' false p p'
 

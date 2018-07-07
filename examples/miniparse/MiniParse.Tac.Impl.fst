@@ -15,14 +15,36 @@ let mk_u32 (n: nat { n < 4294967296 } ) : Tot U32.t = U32.uint_to_t n
 
 (* Generate the parser implementation from the parser specification *)
 
-let rec gen_parser32' (p: T.term) : T.Tac T.term =
+let rec gen_parser32' (env: T.env) (p: T.term) : T.Tac T.term =
   let (hd, tl) = app_head_tail p in
   if hd `T.term_eq` (`(parse_ret)) then T.mk_app (`(parse32_ret)) tl else
   if hd `T.term_eq` (`(parse_u8)) then (`(parse32_u8)) else
+  if hd `T.term_eq` (`(and_then)) then match tl with
+  | [k; t; (p, _); k'; t'; (p', _)] ->
+    begin match T.inspect p' with
+    | T.Tv_Abs bx body ->
+      let p32 = gen_parser32' env p in
+      let env' = T.push_binder env bx in
+      let body' = gen_parser32' env' body in
+      let p32' = T.pack (T.Tv_Abs bx body') in
+      T.mk_app (`parse32_and_then) [
+        k;
+        t;
+        (p, T.Q_Implicit);
+        (p32, T.Q_Explicit);
+        k';
+        t';
+        (p', T.Q_Explicit);
+        (p32', T.Q_Explicit);
+      ]
+    | _ -> tfail "rhs part of and_then must be a lambda"
+    end
+  | _ -> tfail "Not enough arguments to and_then"
+  else
   if hd `T.term_eq` (`(nondep_then)) then match tl with
   | [k1; t1; (p1, _); k2; t2; (p2, _)] ->
-    let p1' = gen_parser32' p1 in
-    let p2' = gen_parser32' p2 in
+    let p1' = gen_parser32' env p1 in
+    let p2' = gen_parser32' env p2 in
     T.mk_app (`(parse32_nondep_then)) [
       k1;
       t1;
@@ -44,7 +66,7 @@ let rec gen_parser32' (p: T.term) : T.Tac T.term =
     let bx = T.fresh_binder t1 in
     let x = T.pack (T.Tv_Var (T.bv_of_binder bx)) in
     let f2' = T.pack (T.Tv_Abs bx (T.mk_app f2 [x, T.Q_Explicit])) in
-    let p1' = gen_parser32' p1 in
+    let p1' = gen_parser32' env p1 in
     T.mk_app (`(parse32_synth)) [
       qt1;
       t2;
@@ -65,12 +87,13 @@ let rec gen_parser32' (p: T.term) : T.Tac T.term =
   else
   if hd `T.term_eq` (`parse_filter)
   then match tl with
-  | [(t, _); (p, _); (f, _)] ->
+  | [k; (t, _); (p, _); (f, _)] ->
     let bx = T.fresh_binder t in
     let x = T.pack (T.Tv_Var (T.bv_of_binder bx)) in
     let f' = T.pack (T.Tv_Abs bx (T.mk_app f [x, T.Q_Explicit])) in
-    let p' = gen_parser32' p in
+    let p' = gen_parser32' env p in
     T.mk_app (`parse32_filter) [
+      k;
       (t, T.Q_Implicit);
       (p, T.Q_Implicit);
       (p', T.Q_Explicit);
@@ -86,13 +109,12 @@ let rec gen_parser32' (p: T.term) : T.Tac T.term =
     if hd' `T.term_eq` (`(TS.mk_package))
     then match tl' with
     | [_; (p, _); _] ->
-      gen_parser32' p
+      gen_parser32' env p
     | _ -> tfail "Not enough arguments to mk_package"
     else begin match T.inspect hd with
     | T.Tv_FVar v ->
-      let env = T.cur_env () in
       let t' = T.norm_term_env env [iota] (T.mk_app (unfold_term hd') tl') in
-      gen_parser32' (T.mk_app hd [qt; (t', T.Q_Explicit)])
+      gen_parser32' env (T.mk_app hd [qt; (t', T.Q_Explicit)])
     | _ -> tfail "Unknown parser package"
     end
   | _ ->
@@ -101,12 +123,11 @@ let rec gen_parser32' (p: T.term) : T.Tac T.term =
   if hd `T.term_eq` (`parse_nlist)
   then match tl with
   | [(n, _); (t, _); (p, _)] ->
-    let env = T.cur_env () in
     let tv = T.inspect (T.norm_term_env env [delta; iota; zeta; primops] n) in
     begin match tv with
     | T.Tv_Const (T.C_Int _) ->
       let n' = T.mk_app (`(mk_u32)) [T.pack tv, T.Q_Explicit] in
-      let p' = gen_parser32' p in
+      let p' = gen_parser32' env p in
       T.mk_app (`parse32_nlist) [
         (n, T.Q_Explicit);
         (n', T.Q_Explicit);
@@ -120,9 +141,8 @@ let rec gen_parser32' (p: T.term) : T.Tac T.term =
   else
   match T.inspect hd with
   | T.Tv_FVar v ->
-    let env = T.cur_env () in
     let t' = T.norm_term_env env [iota] (T.mk_app (unfold_term hd) tl) in
-    gen_parser32' t'
+    gen_parser32' env t'
   | _ ->
     tfail "Unknown parser combinator"
 
@@ -130,7 +150,8 @@ let p = parse_u8 `nondep_then` parse_ret 42
 
 let gen_parser32 (p: T.term) : T.Tac unit =
   T.set_guard_policy T.Goal;
-  let t = gen_parser32' p in
+  let env = T.cur_env () in
+  let t = gen_parser32' env p in
   T.exact_guard t;
   tconclude_with [
     synth_inverse_forall_bounded_u8_solve;
