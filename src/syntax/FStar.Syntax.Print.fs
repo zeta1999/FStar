@@ -266,6 +266,10 @@ and term_to_string x =
       | Tm_delayed _ ->   failwith "impossible"
       | Tm_app(_, []) ->  failwith "Empty args!"
 
+      // TODO: add an option to mark where this happens
+      | Tm_lazy ({blob=b; lkind=Lazy_embedding (_, thunk)}) ->
+        "[LAZYEMB:" ^
+        term_to_string (FStar.Common.force_thunk thunk) ^ "]"
       | Tm_lazy i ->
         "[lazy:" ^
         term_to_string (must !lazy_chooser i.lkind i) // can't call into Syntax.Util here..
@@ -782,3 +786,9 @@ let set_to_string f s =
             U.string_of_string_builder strb
 
 let bvs_to_string sep bvs = binders_to_string sep (List.map mk_binder bvs)
+
+let rec emb_typ_to_string = function
+    | ET_abstract -> "abstract"
+    | ET_app (h, []) -> h
+    | ET_app(h, args) -> "(" ^h^ " " ^ (List.map emb_typ_to_string args |> String.concat " ")  ^")"
+    | ET_fun(a, b) -> "(" ^ emb_typ_to_string a ^ ") -> " ^ emb_typ_to_string b

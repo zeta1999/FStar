@@ -74,8 +74,8 @@ type primitive_step = {
     auto_reflect:option<int>;
     strong_reduction_ok:bool;
     requires_binder_substitution:bool;
-    interpretation:(psc -> args -> option<term>);
-    interpretation_nbe:(NBE.args -> option<NBE.t>)
+    interpretation:(psc -> FStar.Syntax.Embeddings.norm_cb -> args -> option<term>);
+    interpretation_nbe:(NBE.nbe_cbs -> NBE.args -> option<NBE.t>)
 }
 
 type debug_switches = {
@@ -116,6 +116,8 @@ val log_nbe : cfg -> (unit -> unit) -> unit
 val is_prim_step: cfg -> fv -> bool
 val find_prim_step: cfg -> fv -> option<primitive_step>
 
+val embed_simple: EMB.embedding<'a> -> Range.range -> 'a -> term
+val try_unembed_simple: EMB.embedding<'a> -> term -> option<'a>
 val built_in_primitive_steps : BU.psmap<primitive_step>
 val equality_ops : BU.psmap<primitive_step>
 

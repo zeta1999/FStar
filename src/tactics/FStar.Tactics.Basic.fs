@@ -66,10 +66,12 @@ let run t p =
     t.tac_f p
 
 let run_safe t p =
-    try t.tac_f p
-    with | Errors.Err (_, msg)
-         | Errors.Error (_, msg, _) -> Failed (msg, p)
-         | e -> Failed (BU.message_of_exn e, p)
+    if Options.tactics_failhard ()
+    then run t p
+    else try run t p
+         with | Errors.Err (_, msg)
+              | Errors.Error (_, msg, _) -> Failed (msg, p)
+              | e -> Failed (BU.message_of_exn e, p)
 
 let rec log ps (f : unit -> unit) : unit =
     if ps.tac_verb_dbg
@@ -502,16 +504,6 @@ let fresh () : tac<Z.t> =
     let ps = { ps with freshness = n + 1 } in
     bind (set ps) (fun () ->
     ret (Z.of_int_fs n)))
-
-let ngoals () : tac<Z.t> =
-    bind get (fun ps ->
-    let n = List.length ps.goals in
-    ret (Z.of_int_fs n))
-
-let ngoals_smt () : tac<Z.t> =
-    bind get (fun ps ->
-    let n = List.length ps.smt_goals in
-    ret (Z.of_int_fs n))
 
 let is_guard () : tac<bool> =
     bind (cur_goal ()) (fun g ->
@@ -1609,11 +1601,10 @@ let set_options (s : string) : tac<unit> = wrap_err "set_options" <|
     )
 
 let top_env     () : tac<env>  = bind get (fun ps -> ret <| ps.main_context)
-let cur_env     () : tac<env>  = bind (cur_goal ()) (fun g -> ret <| (goal_env g))
-let cur_goal'   () : tac<term> = bind (cur_goal ()) (fun g -> ret <| (goal_type g))
-let cur_witness () : tac<term> = bind (cur_goal ()) (fun g -> ret <| (goal_witness g))
 
-let lax_on () : tac<bool> = bind (cur_env ()) (fun e -> ret (Options.lax () || e.lax))
+let lax_on () : tac<bool> =
+    bind (cur_goal ()) (fun g ->
+    ret (Options.lax () || (goal_env g).lax))
 
 let unquote (ty : term) (tm : term) : tac<term> = wrap_err "unquote" <|
     mlog (fun () -> BU.print1 "unquote: tm = %s\n" (Print.term_to_string tm)) (fun _ ->
@@ -1706,10 +1697,7 @@ let change (ty : typ) : tac<unit> = wrap_err "change" <|
          * and unify it with the fully normalized goal. If that succeeds,
          * we use the original one as the new goal. This is sometimes needed
          * since the unifier has some bugs. *)
-        let steps =
-            [Env.Reify; Env.UnfoldUntil delta_constant;
-             Env.AllowUnboundUniverses;
-             Env.Primops; Env.Simplify; Env.UnfoldTac; Env.Unmeta] in
+        let steps = [Env.AllowUnboundUniverses; Env.UnfoldUntil delta_constant; Env.Primops] in
         let ng  = normalize steps (goal_env g) (goal_type g) in
         let nty = normalize steps (goal_env g) ty in
         bind (do_unify (goal_env g) ng nty) (fun b ->
@@ -1850,6 +1838,7 @@ let rec init (l:list<'a>) : list<'a> =
 let rec inspect (t:term) : tac<term_view> = wrap_err "inspect" (
     let t = U.unascribe t in
     let t = U.un_uinst t in
+    let t = U.unlazy_emb t in
     match t.n with
     | Tm_meta (t, _) ->
         inspect t

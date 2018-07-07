@@ -364,9 +364,12 @@ and tc_maybe_toplevel_term env (e:term) : term                  (* type-checked 
                None t.pos in
     t, lc, g
 
+  | Tm_lazy ({lkind=Lazy_embedding _ }) ->
+    tc_term env (U.unlazy top)
+
   // lazy terms have whichever type they're annotated with
   | Tm_lazy i ->
-    value_check_expected_typ env top (Inl i.typ) Env.trivial_guard
+    value_check_expected_typ env top (Inl i.ltyp) Env.trivial_guard
 
   | Tm_meta(e, Meta_desugared Meta_smt_pat) ->
     let e, c, g = tc_tot_or_gtot_term env e in
@@ -1648,7 +1651,8 @@ and check_short_circuit_args env head chead g_head args expected_topt : term * l
         | Tm_arrow(bs, c) when (U.is_total_comp c && List.length bs=List.length args) ->
           let res_t = U.comp_result c in
           let args, guard, ghost = List.fold_left2 (fun (seen, guard, ghost) (e, aq) (b, aq') ->
-                if aq<>aq' then raise_error (Errors.Fatal_InconsistentImplicitQualifier, "Inconsistent implicit qualifiers") e.pos;
+                if eq_aqual aq aq' <> Equal
+                then raise_error (Errors.Fatal_InconsistentImplicitQualifier, "Inconsistent implicit qualifiers") e.pos;
                 let e, c, g = tc_check_tot_or_gtot_term env e b.sort in //NS: this forbids stuff like !x && y, maybe that's ok
                 let short = TcUtil.short_circuit head seen in
                 let g = Env.imp_guard (Env.guard_of_guard_formula short) g in

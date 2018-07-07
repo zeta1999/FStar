@@ -27,6 +27,9 @@ open FStar.BaseTypes
 
 module FC = FStar.Common
 
+let debug_embedding = mk_ref false
+let eager_embedding = mk_ref false
+
 type debug_level_t =
   | Low
   | Medium
@@ -109,7 +112,12 @@ let set_option k v = Util.smap_add (peek()) k v
 let set_option' (k,v) =  set_option k v
 
 let with_saved_options f =
-  push (); let retv = f () in pop (); retv
+  push ();
+  try let retv = f () in
+      pop ();
+      retv
+  with | ex -> pop ();
+               raise ex
 
 let light_off_files : ref<list<string>> = Util.mk_ref []
 let add_light_off_file (filename:string) = light_off_files := filename :: !light_off_files
@@ -165,6 +173,7 @@ let defaults =
       ("no_extract"                   , List []);
       ("no_location_info"             , Bool false);
       ("no_smt"                       , Bool false);
+      ("no_plugins"                   , Bool false);
       ("no_tactics"                   , Bool false);
       ("normalize_pure_terms_for_extraction"
                                       , Bool false);
@@ -187,6 +196,7 @@ let defaults =
       ("smtencoding.elim_box"         , Bool false);
       ("smtencoding.nl_arith_repr"    , String "boxwrap");
       ("smtencoding.l_arith_repr"     , String "boxwrap");
+      ("tactics_failhard"             , Bool false);
       ("tactic_raw_binders"           , Bool false);
       ("tactic_trace"                 , Bool false);
       ("tactic_trace_d"               , Int 0);
@@ -280,6 +290,7 @@ let get_n_cores                 ()      = lookup_opt "n_cores"                  
 let get_no_default_includes     ()      = lookup_opt "no_default_includes"      as_bool
 let get_no_extract              ()      = lookup_opt "no_extract"               (as_list as_string)
 let get_no_location_info        ()      = lookup_opt "no_location_info"         as_bool
+let get_no_plugins              ()      = lookup_opt "no_plugins"               as_bool
 let get_no_smt                  ()      = lookup_opt "no_smt"                   as_bool
 let get_normalize_pure_terms_for_extraction
                                 ()      = lookup_opt "normalize_pure_terms_for_extraction" as_bool
@@ -302,6 +313,7 @@ let get_smtencoding_elim_box    ()      = lookup_opt "smtencoding.elim_box"     
 let get_smtencoding_nl_arith_repr ()    = lookup_opt "smtencoding.nl_arith_repr" as_string
 let get_smtencoding_l_arith_repr()      = lookup_opt "smtencoding.l_arith_repr" as_string
 let get_tactic_raw_binders      ()      = lookup_opt "tactic_raw_binders"       as_bool
+let get_tactics_failhard        ()      = lookup_opt "tactics_failhard"         as_bool
 let get_tactic_trace            ()      = lookup_opt "tactic_trace"             as_bool
 let get_tactic_trace_d          ()      = lookup_opt "tactic_trace_d"           as_int
 let get_tactics_nbe             ()      = lookup_opt "__tactics_nbe"            as_bool
@@ -841,6 +853,11 @@ let rec specs_with_types () : list<(char * string * opt_type * string)> =
         "Do not use the lexical scope of tactics to improve binder names");
 
        ( noshort,
+        "tactics_failhard",
+        Const (mk_bool true),
+        "Do not recover from metaprogramming errors, and abort if one occurs");
+
+       ( noshort,
         "tactic_trace",
         Const (mk_bool true),
         "Print a depth-indexed trace of tactic execution (Warning: very verbose)");
@@ -905,6 +922,11 @@ let rec specs_with_types () : list<(char * string * opt_type * string)> =
          "use_native_tactics",
          PathStr "path",
         "Use compiled tactics from <path>");
+
+       ( noshort,
+        "no_plugins",
+        Const (mk_bool true),
+        "Do not run plugins natively and interpret them as usual instead");
 
        ( noshort,
         "no_tactics",
@@ -1011,6 +1033,18 @@ let rec specs_with_types () : list<(char * string * opt_type * string)> =
           BoolStr,
          "Extract interfaces from the dependencies and use them for verification (default 'false')");
 
+        ( noshort,
+          "__debug_embedding",
+           WithSideEffect ((fun _ -> debug_embedding := true),
+                           (Const (mk_bool true))),
+          "Debug messages for embeddings/unembeddings of natively compiled terms");
+
+       ( noshort,
+        "eager_embedding",
+         WithSideEffect ((fun _ -> eager_embedding := true),
+                          (Const (mk_bool true))),
+        "Eagerly embed and unembed terms to primitive operations and plugins: not recommended except for benchmarking");
+
        ('h',
         "help", WithSideEffect ((fun _ -> display_usage_aux (specs ()); exit 0),
                                 (Const (mk_bool true))),
@@ -1065,9 +1099,11 @@ let settable = function
     | "trace_error"
     | "unthrottle_inductives"
     | "use_eq_at_higher_order"
+    | "no_plugins"
     | "no_tactics"
     | "normalize_pure_terms_for_extraction"
     | "tactic_raw_binders"
+    | "tactics_failhard"
     | "tactic_trace"
     | "tactic_trace_d"
     | "tcnorm"
@@ -1315,6 +1351,7 @@ let no_extract                   s  = let s = String.lowercase s in
 let normalize_pure_terms_for_extraction
                                  () = get_normalize_pure_terms_for_extraction ()
 let no_location_info             () = get_no_location_info            ()
+let no_plugins                   () = get_no_plugins                  ()
 let no_smt                       () = get_no_smt                      ()
 let output_dir                   () = get_odir                        ()
 let ugly                         () = get_ugly                        ()
@@ -1336,6 +1373,7 @@ let smtencoding_nl_arith_default () = get_smtencoding_nl_arith_repr () = "boxwra
 let smtencoding_l_arith_native   () = get_smtencoding_l_arith_repr () = "native"
 let smtencoding_l_arith_default  () = get_smtencoding_l_arith_repr () = "boxwrap"
 let tactic_raw_binders           () = get_tactic_raw_binders          ()
+let tactics_failhard             () = get_tactics_failhard            ()
 let tactic_trace                 () = get_tactic_trace                ()
 let tactic_trace_d               () = get_tactic_trace_d              ()
 let tactics_nbe                  () = get_tactics_nbe                 ()

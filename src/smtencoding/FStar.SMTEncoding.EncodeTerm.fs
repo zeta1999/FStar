@@ -561,7 +561,7 @@ and encode_term (t:typ) (env:env_t) : (term         (* encoding of t, expects t 
         // They should be equivalent to a fully spelled out view.
         //
         // Actual encoding: `q ~> pack qv where qv is the view of q
-        let tv = EMB.embed RE.e_term_view t.pos (R.inspect_ln qt) in
+        let tv = EMB.embed RE.e_term_view (R.inspect_ln qt) t.pos None EMB.id_norm_cb in
         if Env.debug env.tcenv <| Options.Other "SMTEncoding" then
             BU.print2 ">> Inspected (%s) ~> (%s)\n" (Print.term_to_string t0)
                                                     (Print.term_to_string tv);

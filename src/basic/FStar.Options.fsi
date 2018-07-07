@@ -150,6 +150,7 @@ val n_cores                     : unit    -> int
 val no_default_includes         : unit    -> bool
 val no_extract                  : string  -> bool
 val no_location_info            : unit    -> bool
+val no_plugins                  : unit    -> bool
 val no_smt                      : unit    -> bool
 val normalize_pure_terms_for_extraction
                                 : unit    -> bool
@@ -184,6 +185,7 @@ val smtencoding_nl_arith_native : unit    -> bool
 val smtencoding_l_arith_default : unit    -> bool
 val smtencoding_l_arith_native  : unit    -> bool
 val tactic_raw_binders          : unit    -> bool
+val tactics_failhard            : unit    -> bool
 val tactic_trace                : unit    -> bool
 val tactic_trace_d              : unit    -> int
 val tactics_nbe                 : unit    -> bool
@@ -223,3 +225,6 @@ val _platform: ref<string>
 val _compiler: ref<string>
 val _date: ref<string>
 val _commit: ref<string>
+
+val debug_embedding: ref<bool>
+val eager_embedding: ref<bool>

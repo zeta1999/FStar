@@ -52,6 +52,8 @@ type step =
   | NBE
 and steps = list<step>
 
+val eq_step : step -> step -> bool
+
 type sig_binding = list<lident> * sigelt
 
 type delta_level =

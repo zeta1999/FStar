@@ -66,6 +66,36 @@ type step =
   | NBE
 and steps = list<step>
 
+let rec eq_step s1 s2 =
+  match s1, s2 with
+  | Beta, Beta
+  | Iota, Iota           //pattern matching
+  | Zeta, Zeta            //fixed points
+  | Weak, Weak            //Do not descend into binders
+  | HNF, HNF             //Only produce a head normal form
+  | Primops, Primops         //reduce primitive operators like +, -, *, /, etc.
+  | Eager_unfolding, Eager_unfolding
+  | Inlining, Inlining
+  | DoNotUnfoldPureLets, DoNotUnfoldPureLets
+  | UnfoldTac, UnfoldTac
+  | PureSubtermsWithinComputations, PureSubtermsWithinComputations
+  | Simplify, Simplify
+  | EraseUniverses, EraseUniverses
+  | AllowUnboundUniverses, AllowUnboundUniverses
+  | Reify, Reify
+  | CompressUvars, CompressUvars
+  | NoFullNorm, NoFullNorm
+  | CheckNoUvars, CheckNoUvars
+  | Unmeta, Unmeta
+  | Unascribe, Unascribe
+  | NBE, NBE -> true
+  | Exclude s1, Exclude s2 -> eq_step s1 s2
+  | UnfoldUntil s1, UnfoldUntil s2 -> s1 = s2
+  | UnfoldOnly lids1, UnfoldOnly lids2
+  | UnfoldFully lids1, UnfoldFully lids2 -> List.length lids1 = List.length lids2 && List.forall2 Ident.lid_equals lids1 lids2
+  | UnfoldAttr a1, UnfoldAttr a2 -> eq_tm a1 a2 = Equal
+  | _ -> false
+
 type sig_binding = list<lident> * sigelt
 
 type delta_level =

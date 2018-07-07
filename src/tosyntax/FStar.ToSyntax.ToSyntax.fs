@@ -30,6 +30,8 @@ open FStar.Parser.AST
 open FStar.Ident
 open FStar.Const
 open FStar.Errors
+open FStar.Syntax
+
 module C = FStar.Parser.Const
 module S = FStar.Syntax.Syntax
 module U = FStar.Syntax.Util
@@ -2112,7 +2114,7 @@ let get_fail_attr warn (at : S.term) : option<(list<int> * bool)> =
     match (SS.compress hd).n, args with
     | Tm_fvar fv, [(a1, _)] when S.fv_eq_lid fv C.fail_attr
                               || S.fv_eq_lid fv C.fail_lax_attr ->
-        begin match EMB.unembed (EMB.e_list EMB.e_int) a1 with
+        begin match EMB.unembed (EMB.e_list EMB.e_int) a1 true EMB.id_norm_cb with
         | Some es when List.length es > 0->
             (* Is this an expect_lax_failure? *)
             let b = S.fv_eq_lid fv C.fail_lax_attr in
