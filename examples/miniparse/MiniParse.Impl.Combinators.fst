@@ -16,14 +16,17 @@ let parse32_ret
 
 inline_for_extraction
 let parse32_and_then
+  (k0: parser_kind)
+  (#k: parser_kind)
   (#t:Type)
-  (#p:parser t)
+  (#p:parser' k t)
   (p32: parser32 p)
+  (#k' : parser_kind)
   (#t':Type)
-  (p': (t -> Tot (parser t')))
-  (u: unit { and_then_cases_injective p' } )
+  (p': (t -> Tot (parser' k' t')))
+  (u: unit { k0 == true ==> (k == true /\ k' == true /\ and_then_cases_injective p') } )
   (p32' : ((x: t) -> Tot (parser32 (p' x))))
-: Tot (parser32 (p `and_then` p'))
+: Tot (parser32 (and_then' k0 p p'))
 = fun (input: buffer8) (len: U32.t { len == B.len input } ) ->
   match p32 input len with
   | Some (v, l) ->
@@ -39,14 +42,16 @@ let parse32_and_then
 
 inline_for_extraction
 let parse32_nondep_then
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser t1)
+  (#p1: parser' k1 t1)
   (p1' : parser32 p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (#p2: parser t2)
+  (#p2: parser' k2 t2)
   (p2' : parser32 p2)
 : Tot (parser32 (nondep_then p1 p2))
-= parse32_and_then p1' _ () (fun x -> parse32_and_then p2' _ () (fun y -> parse32_ret (x, y)))
+= parse32_and_then (nondep_then_kind k1 k2) p1' _ () (fun x -> parse32_and_then (nondep_then_kind k2 true) p2' _ () (fun y -> parse32_ret (x, y)))
 
 let seq_append_slice
   (#t: Type)
@@ -128,8 +133,9 @@ let serialize32_synth
 
 inline_for_extraction
 let parse32_filter
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' k t)
   (p32: parser32 p)
   (f: (t -> GTot bool))
   (g: ((x: t) -> Tot (b: bool { b == f x } )))
@@ -148,8 +154,9 @@ let parse32_filter
 
 inline_for_extraction
 let serialize32_filter
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' k t)
   (#s: serializer p)
   (s32: serializer32 s)
   (f: (t -> GTot bool))

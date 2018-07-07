@@ -264,9 +264,10 @@ let and_then_cases_injective'
   x1 == x2
 
 let coerce_to_bare_param_parser
+  (#k: parser_kind)
   (#t: Type)
   (#t' : Type)
-  (p' : (t -> Tot (parser t')))
+  (p' : (t -> Tot (parser' k t')))
   (x: t)
 : Tot (bare_parser t')
 = coerce_to_bare_parser _ (p' x)
@@ -422,7 +423,26 @@ let and_then_correct
 
 #reset-options
 
-val and_then
+val and_then'
+  (k: parser_kind)
+  (#k1: parser_kind)
+  (#t:Type)
+  (p:parser' k1 t)
+  (#k2: parser_kind)
+  (#t':Type)
+  (p': (t -> Tot (parser' k2 t')))
+: Pure (parser' k t')
+  (requires (
+    k == true ==> (k1 == true /\ k2 == true /\ and_then_cases_injective p')
+  ))
+  (ensures (fun _ -> True))
+
+let and_then' k #k1 #t p #k2 #t' p' =
+  let f : bare_parser t' = and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p') in
+  if k then and_then_correct p p' else ();
+  Parser f
+
+let and_then_strong
   (#t:Type)
   (p:parser t)
   (#t':Type)
@@ -432,23 +452,36 @@ val and_then
     and_then_cases_injective p'
   ))
   (ensures (fun _ -> True))
+= and_then' true p p'
 
-let and_then #t p #t' p' =
-  let f : bare_parser t' = and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p') in
-  and_then_correct p p' ;
-  Parser f
+let and_then_weak
+  (#k1: parser_kind)
+  (#t:Type)
+  (p:parser t)
+  (#t':Type)
+  (#k2: parser_kind)
+  (p': (t -> Tot (parser t')))
+: Tot (parser' false t')
+= and_then' false p p'
 
 (* Special case for non-dependent parsing *)
 
 #set-options "--z3rlimit 16"
 
+let nondep_then_kind (k1 k2: parser_kind) : Tot parser_kind = if k1 then k2 else false
+
 let nondep_then
+  (#k1: parser_kind)
   (#t1: Type0)
-  (p1: parser t1)
+  (p1: parser' k1 t1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (p2: parser t2)
-: Tot (parser (t1 * t2))
-= p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> (parse_ret (v1, v2))))
+  (p2: parser' k2 t2)
+: Tot (parser' (nondep_then_kind k1 k2) (t1 * t2))
+= and_then' (nondep_then_kind k1 k2) p1 (fun v1 ->
+    and_then' (nondep_then_kind k2 true) p2 (fun v2 ->
+      parse_ret (v1, v2)
+  ))
 
 let bare_serialize_nondep_then
   (#t1: Type0)
@@ -546,16 +579,17 @@ let synth_inverse
 = (forall (x : t2) . f2 (g1 x) == x)
 
 let parse_synth'
+  (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
-  (p1: parser t1)
+  (p1: parser' k t1)
   (f2: t1 -> GTot t2)
-: Pure (parser t2)
+: Pure (parser' k t2)
   (requires (
-    forall (x x' : t1) . f2 x == f2 x' ==> x == x'
+    forall (x x' : t1) . (k == true /\ f2 x == f2 x') ==> x == x'
   ))
   (ensures (fun _ -> True))
-= (and_then p1 (fun v1 -> parse_fret f2 v1))
+= and_then' k p1 (fun v1 -> parse_fret f2 v1)
 
 let parse_synth
   (#t1: Type0)
@@ -568,7 +602,7 @@ let parse_synth
     synth_inverse g1 f2
   ))
   (ensures (fun _ -> True))
-= (and_then p1 (fun v1 -> parse_fret f2 v1))
+= (and_then_strong p1 (fun v1 -> parse_fret f2 v1))
 
 val bare_serialize_synth
   (#t1: Type0)
@@ -629,20 +663,24 @@ let serialize_synth
 
 unfold
 let lift_parser'
+  (#k: parser_kind)
   (#t: Type0)
-  (f: unit -> GTot (parser t))
+  (f: unit -> GTot (parser' k t))
 : Tot (bare_parser t)
 = fun (input: bytes) -> parse (f ()) input
 
 unfold
 let lift_parser
+  (#k: parser_kind)
   (#t: Type0)
-  (f: unit -> GTot (parser t))
-: Tot (parser t)
+  (f: unit -> GTot (parser' k t))
+: Tot (parser' k t)
 = let p = lift_parser' f in
-  no_lookahead_weak_ext p (coerce_to_bare_parser _ (f ()));
-  no_lookahead_ext p (coerce_to_bare_parser _ (f ()));
-  injective_ext p (coerce_to_bare_parser _ (f ()));
+  if k then begin
+    no_lookahead_weak_ext p (coerce_to_bare_parser _ (f ()));
+    no_lookahead_ext p (coerce_to_bare_parser _ (f ()));
+    injective_ext p (coerce_to_bare_parser _ (f ()))
+  end;
   Parser p
 
 (** Refinements *)
@@ -661,23 +699,26 @@ let parse_filter_payload
   )
 
 let parse_filter
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' k t)
   (f: (t -> GTot bool))
-: Tot (parser (x: t { f x == true }))
-= p `and_then` (parse_filter_payload f)
+: Tot (parser' k (x: t { f x == true }))
+= and_then' k p (parse_filter_payload f)
 
 let serialize_filter'
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' k t)
   (s: serializer p)
   (f: (t -> GTot bool))
 : Tot (bare_serializer (x: t { f x == true } ))
 = fun (input: t { f input == true } ) -> serialize s input
 
 let serialize_filter
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' k t)
   (s: serializer p)
   (f: (t -> GTot bool))
 : Tot (serializer (parse_filter p f))

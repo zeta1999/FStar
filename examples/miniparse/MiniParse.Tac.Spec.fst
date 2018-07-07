@@ -35,8 +35,10 @@ let rec gen_package' (p: T.term) : T.Tac (T.term * T.term) =
     let (p1, s1) = gen_package' t1 in
     let (p2, s2) = gen_package' t2 in
     let p = T.mk_app (`(nondep_then)) [
+      ((`true), T.Q_Implicit);
       (t1, T.Q_Implicit);
       (p1, T.Q_Explicit);
+      ((`true), T.Q_Implicit);
       (t2, T.Q_Implicit);
       (p2, T.Q_Explicit);
     ]

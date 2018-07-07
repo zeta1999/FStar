@@ -20,13 +20,15 @@ let rec gen_parser32' (p: T.term) : T.Tac T.term =
   if hd `T.term_eq` (`(parse_ret)) then T.mk_app (`(parse32_ret)) tl else
   if hd `T.term_eq` (`(parse_u8)) then (`(parse32_u8)) else
   if hd `T.term_eq` (`(nondep_then)) then match tl with
-  | [t1; (p1, _); t2; (p2, _)] ->
+  | [k1; t1; (p1, _); k2; t2; (p2, _)] ->
     let p1' = gen_parser32' p1 in
     let p2' = gen_parser32' p2 in
     T.mk_app (`(parse32_nondep_then)) [
+      k1;
       t1;
       (p1, T.Q_Implicit);
       (p1', T.Q_Explicit);
+      k2;
       t2;
       (p2, T.Q_Implicit);
       (p2', T.Q_Explicit);

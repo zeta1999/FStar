@@ -219,22 +219,33 @@ let no_lookahead_ext
   ))
 = Classical.forall_intro_2 (fun b1 -> Classical.move_requires (no_lookahead_on_ext p1 p2 b1))
 
+inline_for_extraction
+let parser_kind = bool
+
 noeq
-type parser
+type parser'
+  (is_strong: parser_kind)
   (t: Type0)
-= | Parser : (f: bare_parser t {
-    no_lookahead_weak f /\
-    injective f /\
-    no_lookahead f
-  } ) -> parser t
+= | Parser :
+  (f: bare_parser t {
+    is_strong == true ==> (
+      no_lookahead_weak f /\
+      injective f /\
+      no_lookahead f
+    )
+  } ) -> parser'  is_strong t
+
+inline_for_extraction
+let parser = parser' true
 
 (* AR: see bug#1349 *)
-unfold let coerce_to_bare_parser (t:Type0) (p:parser t)
+unfold let coerce_to_bare_parser (#k: parser_kind) (t:Type0) (p:parser' k t)
   :Tot (bare_parser t) = Parser?.f p
 
 let parse
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' k t)
   (input: bytes)
 : GTot (option (t * consumed_length input))
 = bparse (coerce_to_bare_parser _ p) input
@@ -253,10 +264,11 @@ let coerce
 
 unfold
 let coerce_parser
+  (#k: parser_kind)
   (t2: Type0)
   (#t1: Type0)
-  (p: parser t1)
-: Pure (parser t2)
+  (p: parser' k t1)
+: Pure (parser' k t2)
   (requires (t2 == t1))
   (ensures (fun _ -> True))
 = p
@@ -270,26 +282,30 @@ let bare_serializer
 = t -> GTot bytes
 
 let serializer_correct
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' k t)
   (f: bare_serializer t)
 : GTot Type0
 = forall (x: t) . parse p (f x) == Some (x, Seq.length (f x))
 
 let serializer_correct_ext
+  (#k1: parser_kind)
   (#t1: Type0)
-  (p1: parser t1)
+  (p1: parser' k1 t1)
   (f: bare_serializer t1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (p2: parser t2)
+  (p2: parser' k2 t2)
 : Lemma
   (requires (t1 == t2 /\ (forall (input: bytes) . parse p1 input == parse p2 input)))
   (ensures (serializer_correct p1 f <==> serializer_correct p2 f))
 = ()
 
 let serializer_complete
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' k t)
   (f: bare_serializer t)
 : GTot Type0
 = forall (s: bytes) .
@@ -323,26 +339,30 @@ let serializer_correct_implies_complete
 
 noeq
 type serializer
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' k t)
 = | Serializer : (f: bare_serializer t { serializer_correct p f } ) -> serializer p
 
 unfold
 let coerce_serializer
   (t2: Type0)
   (#t1: Type0)
-  (#p: parser t1)
+  (#k: parser_kind)
+  (#p: parser' k t1)
   (s: serializer p)
   (u: unit { t2 == t1 } )
 : Tot (serializer (coerce_parser t2 p))
 = s
 
 let serialize_ext
+  (#k1: parser_kind)
   (#t1: Type0)
-  (p1: parser t1)
+  (p1: parser' k1 t1)
   (s1: serializer p1)
   (#t2: Type0)
-  (p2: parser t2)
+  (#k2: parser_kind)
+  (p2: parser' k2 t2)
 : Pure (serializer p2)
   (requires (t1 == t2 /\ (forall (input: bytes) . parse p1 input == parse p2 input)))
   (ensures (fun _ -> True))
@@ -350,19 +370,22 @@ let serialize_ext
   Serializer (Serializer?.f s1 <: bare_serializer t2)
 
 let serialize_ext'
+  (#k1: parser_kind)
   (#t1: Type0)
-  (p1: parser t1)
+  (p1: parser' k1 t1)
   (s1: serializer p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (p2: parser t2)
+  (p2: parser' k2 t2)
 : Pure (serializer p2)
-  (requires (t1 == t2 /\ p1 == p2))
+  (requires (t1 == t2 /\ k1 == k2 /\ p1 == p2))
   (ensures (fun _ -> True))
 = serialize_ext p1 s1 p2
 
 let serialize
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' k t)
   (s: serializer p)
   (x: t)
 : GTot bytes
