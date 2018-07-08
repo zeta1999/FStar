@@ -79,6 +79,27 @@ let rec gen_parser32' (env: T.env) (p: T.term) : T.Tac T.term =
     ]
   | _ -> tfail "Not enough arguments to synth"
   else
+  if hd `T.term_eq` (`(parse_synth_weak))
+  then match tl with
+  | [k; qt1; t2; qp1; qf2] ->
+    let (p1, _) = qp1 in
+    let (t1, _) = qt1 in
+    let (f2, _) = qf2 in
+    let bx = T.fresh_binder t1 in
+    let x = T.pack (T.Tv_Var (T.bv_of_binder bx)) in
+    let f2' = T.pack (T.Tv_Abs bx (T.mk_app f2 [x, T.Q_Explicit])) in
+    let p1' = gen_parser32' env p1 in
+    T.mk_app (`(parse32_synth_weak)) [
+      k;
+      qt1;
+      t2;
+      (p1, T.Q_Implicit);
+      (p1', T.Q_Explicit);
+      qf2;
+      (f2', T.Q_Explicit);
+    ]
+  | _ -> tfail "Not enough arguments to synth_weak"
+  else
   if hd `T.term_eq` (`parse_bounded_u8)
   then match tl with
   | [(b, _)] ->
