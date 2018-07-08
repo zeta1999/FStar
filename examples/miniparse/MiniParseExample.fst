@@ -6,6 +6,18 @@ open MiniParse.Spec.TSum
 module T = FStar.Tactics
 module U8 = FStar.UInt8
 
+module I16 = FStar.Int16
+module Cast = FStar.Int.Cast
+
+//  else Cast.uint8_to_int16 (x `U8.rem` 128uy) `I16.add` (Cast.uint8_to_int16 y `I16.mul` 128s)
+
+(* An example with and_then *)
+
+let example : parser' false FStar.Int16.t =
+  and_then parse_u8 (fun x -> if x `U8.lt` 128uy then weaken (parse_ret (Cast.uint8_to_int16 x)) else parse_synth_weak parse_u8 (fun y -> MiniParseExample.Aux.f x () y))
+
+let example32 : parser32 example = T.synth_by_tactic (fun () -> gen_parser32_with_policy T.SMT)
+
 #set-options "--no_smt"
 
 (*
@@ -109,13 +121,3 @@ let somme_p =
     (parse_bounded_u8 4)
     imp0
     imp1
-
-(* An example with and_then *)
-
-module I16 = FStar.Int16
-module Cast = FStar.Int.Cast
-
-let example : parser' false FStar.Int16.t =
-  and_then parse_u8 (fun x -> parse_ret (Cast.uint8_to_int16 x))
-
-let example32 : parser32 example = T.synth_by_tactic gen_parser32

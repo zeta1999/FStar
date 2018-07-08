@@ -202,8 +202,8 @@ let rec gen_parser32' (env: T.env) (k: T.term) (t: T.term) (p: T.term) : T.Tac T
 
 let p = parse_u8 `nondep_then` parse_ret 42
 
-let gen_parser32 () : T.Tac unit =
-  T.set_guard_policy T.Goal;
+let gen_parser32_with_policy pol : T.Tac unit =
+  T.set_guard_policy pol;
   let (hd, tl) = app_head_tail (T.cur_goal ()) in
   if hd `T.term_eq` (`parser32)
   then match tl with
@@ -211,14 +211,20 @@ let gen_parser32 () : T.Tac unit =
     let env = T.cur_env () in
     let p32 = gen_parser32' env k t p in
     T.exact_guard p32;
-    tconclude_with [
-      synth_inverse_forall_bounded_u8_solve;
-      synth_inverse_forall_tenum_solve;
-    ];
+    begin match pol with
+    | T.SMT -> ()
+    | _ ->
+      tconclude_with [
+        synth_inverse_forall_bounded_u8_solve;
+        synth_inverse_forall_tenum_solve;
+      ]
+    end;
     T.print "gen_parser32 spits:";
     T.print (T.term_to_string p32)
   | _ -> tfail "Not enough arguments to gen_parser32"
   else tfail "Not a parser32 goal"
+
+let gen_parser32 () : T.Tac unit = gen_parser32_with_policy T.Goal
 
 let q : parser32 p = T.synth_by_tactic gen_parser32
 

@@ -273,7 +273,7 @@ inline_for_extraction
 let cond_true (cond: bool) : Tot Type0 = (u: squash (cond == true))
 
 inline_for_extraction
-let cond_false (cond: bool) : Tot Type0 = (u: squash (cond == false))
+let cond_false (cond: bool) : Tot Type0 = (u: squash (~ (cond == true)))
 
 inline_for_extraction
 let parse32_ifthenelse
