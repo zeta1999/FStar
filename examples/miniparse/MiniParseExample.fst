@@ -28,7 +28,7 @@ let g'_injective: squash (synth_inverse f' g') =
 
 let p = T.synth_by_tactic (fun () -> gen_enum_parser (`test))
 
-let q = T.synth_by_tactic (fun () -> gen_parser32 (`p))
+let q = T.synth_by_tactic gen_parser32
 
 #reset-options
 
@@ -109,3 +109,13 @@ let somme_p =
     (parse_bounded_u8 4)
     imp0
     imp1
+
+(* An example with and_then *)
+
+module I16 = FStar.Int16
+module Cast = FStar.Int.Cast
+
+let example : parser' false FStar.Int16.t =
+  and_then parse_u8 (fun x -> parse_ret (Cast.uint8_to_int16 x))
+
+let example32 : parser32 example = T.synth_by_tactic gen_parser32
