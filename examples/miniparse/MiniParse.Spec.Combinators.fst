@@ -579,17 +579,28 @@ let synth_inverse
 = (forall (x : t2) . f2 (g1 x) == x)
 
 let parse_synth'
+  (k0: parser_kind)
   (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser' k t1)
   (f2: t1 -> GTot t2)
-: Pure (parser' k t2)
+: Pure (parser' k0 t2)
   (requires (
-    forall (x x' : t1) . (k == true /\ f2 x == f2 x') ==> x == x'
+    (k0 == true ==> k == true) /\
+    (forall (x x' : t1) . (k0 == true /\ f2 x == f2 x') ==> x == x')
   ))
   (ensures (fun _ -> True))
-= and_then' k p1 (fun v1 -> parse_fret f2 v1)
+= and_then' k0 p1 (fun v1 -> parse_fret f2 v1)
+
+let parse_synth_weak
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: parser' k t1)
+  (f2: t1 -> GTot t2)
+: Tot (parser' false t2)
+= parse_synth' false p1 f2
 
 let parse_synth
   (#t1: Type0)
@@ -602,7 +613,7 @@ let parse_synth
     synth_inverse g1 f2
   ))
   (ensures (fun _ -> True))
-= (and_then_strong p1 (fun v1 -> parse_fret f2 v1))
+= parse_synth' true p1 f2
 
 val bare_serialize_synth
   (#t1: Type0)

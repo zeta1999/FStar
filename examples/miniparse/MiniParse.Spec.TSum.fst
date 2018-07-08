@@ -29,7 +29,7 @@ val parse_tagged_union
 
 let parse_tagged_union #tag_t pt #data_t tag_of_data p =
   pt `and_then_strong` (fun (tg: tag_t) ->
-    parse_synth' #_ #(refine_with_tag tag_of_data tg) (p tg) (synth_tagged_union_data tag_of_data tg)
+    parse_synth' true #_ #(refine_with_tag tag_of_data tg) (p tg) (synth_tagged_union_data tag_of_data tg)
   )
 
 let bare_serialize_tagged_union

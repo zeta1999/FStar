@@ -108,6 +108,38 @@ let serialize32_nondep_then
     end
 
 inline_for_extraction
+let parse32_synth'
+  (k0: parser_kind)
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#t2: Type0)
+  (#p1: parser' k t1)
+  (p1' : parser32 p1)
+  (f2: t1 -> GTot t2)
+  (f2': (x: t1) -> Tot (y: t2 { y == f2 x } ))
+  (u: unit {
+    (k0 == true ==> k == true) /\
+    (forall (x x' : t1) . (k0 == true /\ f2 x == f2 x') ==> x == x')
+  })
+: Tot (parser32 (parse_synth' k0 p1 f2))
+= fun (input: buffer8) (len: U32.t { len == B.len input } ) ->
+    match p1' input len with
+    | Some (v1, consumed) -> Some ((f2' v1 <: t2), consumed)
+    | _ -> None
+
+inline_for_extraction
+let parse32_synth_weak
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#t2: Type0)
+  (#p1: parser' k t1)
+  (p1' : parser32 p1)
+  (f2: t1 -> GTot t2)
+  (f2': (x: t1) -> Tot (y: t2 { y == f2 x } ))
+: Tot (parser32 (parse_synth_weak p1 f2))
+= parse32_synth' false p1' f2 f2' ()
+
+inline_for_extraction
 let parse32_synth
   (#t1: Type0)
   (#t2: Type0)
@@ -120,10 +152,7 @@ let parse32_synth
     synth_inverse g1 f2
   })
 : Tot (parser32 (parse_synth p1 f2 g1))
-= fun (input: buffer8) (len: U32.t { len == B.len input } ) ->
-    match p1' input len with
-    | Some (v1, consumed) -> Some ((f2' v1 <: t2), consumed)
-    | _ -> None
+= parse32_synth' true p1' f2 f2' ()
 
 inline_for_extraction
 let serialize32_synth
