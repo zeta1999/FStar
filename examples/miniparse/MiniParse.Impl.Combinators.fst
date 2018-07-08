@@ -8,6 +8,15 @@ module U32 = FStar.UInt32
 module HST = FStar.HyperStack.ST
 
 inline_for_extraction
+let parse32_weaken
+  (#k: parser_kind)
+  (#t: Type)
+  (#p: parser' k t)
+  (p32: parser32 p)
+: Tot (parser32 (weaken p))
+= fun input res -> p32 input res
+
+inline_for_extraction
 let parse32_ret
   (#t: Type)
   (x: t)
@@ -257,3 +266,23 @@ let make_total_constant_size_parser32
     else
       let s' = B.sub input 0ul sz' in
       Some (f' s', (sz' <: U32.t))
+
+(* Helpers to define `if` combinators *)
+
+inline_for_extraction
+let cond_true (cond: bool) : Tot Type0 = (u: squash (cond == true))
+
+inline_for_extraction
+let cond_false (cond: bool) : Tot Type0 = (u: squash (cond == false))
+
+inline_for_extraction
+let parse32_ifthenelse
+  (#k: parser_kind)
+  (#t: Type)
+  (cond: bool)
+  (ctrue: (cond_true cond -> parser' k t))
+  (ctrue32: ((c: cond_true cond) -> parser32 (ctrue c)))
+  (cfalse: (cond_false cond -> parser' k t))
+  (cfalse32: ((c: cond_false cond) -> parser32 (cfalse c)))
+: Tot (parser32 (if cond then ctrue () else cfalse ()))
+= fun input len -> if cond then ctrue32 () input len else cfalse32 () input len

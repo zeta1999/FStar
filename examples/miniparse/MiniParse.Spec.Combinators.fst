@@ -118,6 +118,9 @@ let make_total_constant_size_parser
 
 (** Combinators *)
 
+let weaken (#k: parser_kind) (#t: Type) (p: parser' k t) : Tot (parser' false t) =
+  let Parser q = p in Parser q
+
 /// monadic return for the parser monad
 unfold
 let parse_ret' (#t:Type) (v:t) : Tot (bare_parser t) =
@@ -734,9 +737,3 @@ let serialize_filter
   (f: (t -> GTot bool))
 : Tot (serializer (parse_filter p f))
 = Serializer (serialize_filter' s f)
-
-(* Helpers to define `if` combinators *)
-
-let cond_true (cond: bool) : Tot Type0 = (u: unit { cond == true } )
-
-let cond_false (cond: bool) : Tot Type0 = (u: unit { cond == false } )

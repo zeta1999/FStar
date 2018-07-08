@@ -158,14 +158,45 @@ let rec gen_parser32' (env: T.env) (k: T.term) (t: T.term) (p: T.term) : T.Tac T
     end
   | _ -> tfail "Not enough arguments to parse_nlist"
   else
+  if hd `T.term_eq` (`weaken)
+  then match tl with
+  | [(k', _); (t', _); (p', _)] ->
+    let p32' = gen_parser32' env k' t' p' in
+    T.mk_app (`parse32_weaken) [
+      (k', T.Q_Implicit);
+      (t', T.Q_Implicit);
+      (p', T.Q_Implicit);
+      (p32', T.Q_Explicit);
+    ]
+  | _ -> tfail "not enough arguments to weaken"
+  else
   match T.inspect hd with
   | T.Tv_FVar v ->
     let t' = T.norm_term_env env [iota] (T.mk_app (unfold_term hd) tl) in
     gen_parser32' env k t t'
   | _ ->
     begin match T.inspect p with
-//    | T.Tv_Match cond [T.Pat_Constant T.C_True, tt; _, tf] ->
-//      (* ifthenelse: the second branch can be a wildcard or false *)
+    | T.Tv_Match cond [T.Pat_Constant T.C_True, tt; _, tf] ->
+      (* ifthenelse: the second branch can be a wildcard or false *)
+      let ctrue_t = T.mk_app (`cond_true) [cond, T.Q_Explicit] in
+      let ctrue_b = T.fresh_binder_named "ctrue" ctrue_t in
+      let ctrue_body = gen_parser32' env k t tt in
+      let ctrue_p = T.pack (T.Tv_Abs ctrue_b tt) in
+      let ctrue_p32 = T.pack (T.Tv_Abs ctrue_b ctrue_body) in
+      let cfalse_t = T.mk_app (`cond_false) [cond, T.Q_Explicit] in
+      let cfalse_b = T.fresh_binder_named "cfalse" cfalse_t in
+      let cfalse_body = gen_parser32' env k t tf in
+      let cfalse_p = T.pack (T.Tv_Abs cfalse_b tf) in
+      let cfalse_p32 = T.pack (T.Tv_Abs cfalse_b cfalse_body) in
+      T.mk_app (`parse32_ifthenelse) [
+        (k, T.Q_Implicit);
+        (t, T.Q_Implicit);
+        (cond, T.Q_Explicit);
+        (ctrue_p, T.Q_Explicit);
+        (ctrue_p32, T.Q_Explicit);
+        (cfalse_p, T.Q_Explicit);
+        (cfalse_p32, T.Q_Explicit);
+      ]
     | _ -> tfail "Unknown parser combinator"
     end
 
