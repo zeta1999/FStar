@@ -75,21 +75,23 @@ let rec reification_aux (#a:Type) (mult unit me : term) : Tac (exp a) =
     then Unit
     else Var (unquote me)
 
-let reification (#a:Type) (m:monoid a) (me:term) : Tac (exp a) =
-    let mult = norm_term [delta] (quote (Monoid?.mult m)) in
-    let unit = norm_term [delta] (quote (Monoid?.unit m)) in
+let reification (#a:Type) (tm:term) (me:term) : Tac (exp a) =
+    let mult = norm_term [delta] (`(Monoid?.mult (`#tm))) in
+    let unit = norm_term [delta] (`(Monoid?.unit (`#tm))) in
     let me   = norm_term [delta] me in
     // dump ("mult = " ^ term_to_string mult ^
     //     "; unit = " ^ term_to_string unit ^
     //     "; me   = " ^ term_to_string me);
     reification_aux mult unit me
 
-let canon_monoid (#a:Type) (m:monoid a) : Tac unit =
+let canon_monoid (ta:term) (tm:term) : Tac unit =
   norm [];
   let g = cur_goal () in
+  let a : Type = unquote ta in
+  let m : monoid a = unquote tm in
   match term_as_formula g with
   | Comp (Eq (Some t)) me1 me2 ->
-      if term_eq t (quote a) then
+      if term_eq t ta then
         let r1 = reification m me1 in
         let r2 = reification m me2 in
         change_sq (quote (mdenote m r1 == mdenote m r2));
@@ -103,8 +105,7 @@ let canon_monoid (#a:Type) (m:monoid a) : Tac unit =
 
 let lem0 (a b c d : int) =
   assert_by_tactic (0 + a + b + c + d == (0 + a) + (b + c + 0) + (d + 0))
-  (fun _ -> canon_monoid int_plus_monoid (* string_of_int *); trefl())
-
+  (fun _ -> canon_monoid (`int) (`int_plus_monoid) (* string_of_int *); trefl())
 (* TODO: would be nice to just find all terms of monoid type in the
          goal and replace them with their canonicalization;
          basically use flatten_correct instead of monoid_reflect
