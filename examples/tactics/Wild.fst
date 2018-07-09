@@ -6,10 +6,10 @@ open FStar.Classical
 let id x = x
 
 (* Sanity checks that we're properly tracking implicits *)
-[@(expect_failure [217])] let _ = assert False by (exact (quote (id _)))
-[@(expect_failure [217])] let _ = assert True  by (exact (quote (id _)))
-[@(expect_failure [217])] let _ = assert False by (exact (quote _))
-[@(expect_failure [217])] let _ = assert True  by (exact (quote _))
+[@(expect_failure [217])] let _ = assert False by (exact (`(id _)))
+[@(expect_failure [217])] let _ = assert True  by (exact (`(id _)))
+[@(expect_failure [217])] let _ = assert False by (exact (`_))
+[@(expect_failure [217])] let _ = assert True  by (exact (`_))
 
 (* A more elaborate test *)
 
@@ -33,4 +33,4 @@ let fact h =
    assert (exists x. q x)
        by (apply_lemma (`exists_elim);
            exact (quote h);
-           exact (quote (fun x -> exists_weaken p q _ x)))
+           exact (`(fun x -> exists_weaken (`@p) (`@q) _ x)))

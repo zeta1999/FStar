@@ -16,14 +16,14 @@ let l1 (x : bool) (y : int) (z : unit) =
                 let h0 = implies_intro () in
                 let h1 = implies_intro () in
                 (* dump "Test"; *)
-                exact (quote p))
+                exact (`p))
 
 // this error should show pretty binders too
 (* let _ = *)
 (*     assert_by_tactic (False ==> True) *)
 (*             (fun () -> *)
 (*                 let h0 = implies_intro () in *)
-(*                 let x = quote (fun x -> 1 + x) in *)
+(*                 let x = `(fun x -> 1 + x) in *)
 (*                 let t = mk_e_app x [pack (Tv_Const C_Unit)] in *)
 (*                 let _ = tc t in *)
 (*                 trivial ()) *)

@@ -15,7 +15,7 @@ let l1 (x : bool) (y : int) (z : unit) =
                 clear_top ();
                 let _ = implies_intro () in
                 clear_top ();
-                exact (quote p)
+                exact (`p)
              )
 
 let clear_all_of_type (t : typ) : Tac unit =
@@ -34,7 +34,7 @@ let l2 (x : int) (y : bool) (z : int) =
     assert_by_tactic (phi ==> (psi ==> xi))
             (fun () -> let e = cur_env () in
                        let n = List.length (binders_of_env e) in
-                       let u = quote int in
+                       let u = `int in
                        clear_all_of_type u;
                        let e = cur_env () in
                        // We're removing two binders

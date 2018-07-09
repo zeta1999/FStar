@@ -39,7 +39,7 @@ let iszero (x : int) : int =
     synth (fun () ->
         set_guard_policy SMT;
         let x = quote x in
-        let t_int = quote int in
+        let t_int = `int in
         let _f = fresh_bv t_int in
         let t = Tv_Match x
                     [(Pat_Constant (C_Int 0), pack (Tv_Const (C_Int 1)));
@@ -51,7 +51,7 @@ let _ = assert (iszero 1 = 0)
 let _ = assert (iszero 2 = 0)
 
 let mk_let () : Tac unit =
-   match (inspect (quote ( let f x = if x<=1 then 1 else x - 1 in f 5 ))) with
+   match (inspect (`( let f x = if x<=1 then 1 else x - 1 in f 5 ))) with
    | Tv_Let r b t1 t2 ->
      let t = pack (Tv_Let r b t1 t2) in
      exact_guard t
@@ -61,7 +61,7 @@ let f2 : int = synth mk_let
 let _ = assert (f2 == 4)
 
 let mk_let_rec () : Tac unit =
-   match (inspect (quote ( let rec fr (x:nat) = if x <= 1 then 1 else fr (x-1) in fr 5 ))) with
+   match (inspect (`( let rec fr (x:nat) = if x <= 1 then 1 else fr (x-1) in fr 5 ))) with
    | Tv_Let r b t1 t2 ->
      let t = pack (Tv_Let r b t1 t2) in
      exact_guard t

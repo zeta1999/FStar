@@ -268,7 +268,7 @@ let do_while_st
 
 module T = FStar.Tactics
 
-let do_while_tm () : T.Tac T.term = quote do_while
+let do_while_tm () : T.Tac T.term = `do_while
 
 let compile_do_while
   (do_while_sz_tm: T.term)
@@ -289,8 +289,8 @@ let compile_do_while
         let body_ = T.mk_app body [T.pack (T.Tv_Var (T.bv_of_binder x')), T.Q_Explicit] in
         (x', body_)
     in
-    let ty' = T.mk_app (quote c_or) [
-      T.mk_app (quote tin_decr) [
+    let ty' = T.mk_app (`c_or) [
+      T.mk_app (`tin_decr) [
         tin, T.Q_Explicit;
         decrease, T.Q_Explicit;
         T.pack (T.Tv_Var (T.bv_of_binder x')), T.Q_Explicit;
@@ -348,12 +348,12 @@ let mk_sz'
   (ty: T.term) (t: T.term)
 : T.Tac T.term
 = compile
-    (quote ret_sz)
-    (quote bind_sz)
-    (quote print_char_sz)
-    (quote coerce_sz)
-    (quote ifthenelse_sz)
-    (quote do_while_sz)
+    (`ret_sz)
+    (`bind_sz)
+    (`print_char_sz)
+    (`coerce_sz)
+    (`ifthenelse_sz)
+    (`do_while_sz)
     env
     ty
     t
@@ -370,12 +370,12 @@ let mk_st'
   (ty: T.term) (t: T.term)
 : T.Tac T.term
 = compile
-    (quote ret_st)
-    (quote bind_st)
-    (quote print_char_st)
-    (quote coerce_st)
-    (quote ifthenelse_st)
-    (quote do_while_st)
+    (`ret_st)
+    (`bind_st)
+    (`print_char_st)
+    (`coerce_st)
+    (`ifthenelse_st)
+    (`do_while_st)
     env
     ty
     t

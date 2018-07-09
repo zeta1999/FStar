@@ -60,7 +60,7 @@ let rec mk_do_while_body
 : T.Tac T.term
 = let (t', ar) = app_head_tail t in
   let ins = T.inspect t' in
-  let tty = T.mk_app (quote c_or) [
+  let tty = T.mk_app (`c_or) [
     tin, T.Q_Explicit;
     tout, T.Q_Explicit;
   ]
@@ -71,7 +71,7 @@ let rec mk_do_while_body
     then
     begin match ar with
     | [x, T.Q_Explicit] ->
-      T.mk_app (quote ret_left) [
+      T.mk_app (`ret_left) [
         tin, T.Q_Explicit;
         tout, T.Q_Explicit;
         x, T.Q_Explicit
@@ -95,7 +95,7 @@ let rec mk_do_while_body
         end
       | _ -> T.fail "Not the right number of arguments to bind"
     else
-      T.mk_app (quote (lift_c_or)) [
+      T.mk_app (`(lift_c_or)) [
         tin, T.Q_Explicit;
         tout, T.Q_Explicit;
         t, T.Q_Explicit
@@ -164,8 +164,7 @@ let rewrite_do_while
 : Tot (y: m tout { y () == f x () } )
 = bind (ret (do_while_correct tin tout f decrease body x)) (fun _ -> do_while tin tout decrease body x)
 
-let mk_do_while (#t: Type) (x: t) : T.Tac unit =
-    let q = quote x in
+let mk_do_while (q:T.term) : T.Tac unit =
     match T.inspect q with
     | T.Tv_FVar v ->
       let env = T.cur_env () in
@@ -181,36 +180,36 @@ let mk_do_while (#t: Type) (x: t) : T.Tac unit =
             | T.C_Total tout_ decr ->
               begin match T.inspect tout_ with
               | T.Tv_App m_tm (tout, T.Q_Explicit) ->
-                if tm_eq_fvar m_tm (quote m)
+                if tm_eq_fvar m_tm (`m)
                 then
                   begin match T.inspect tm with
                   | T.Tv_Abs x body ->
                     let tin = T.type_of_binder tin' in
                     let decr_body = match decr with
                     | Some d ->
-                      T.mk_app (quote LexCons) [
+                      T.mk_app (`LexCons) [
                         T.fresh_uvar None, T.Q_Implicit;
                         d, T.Q_Explicit;
-                        quote LexTop, T.Q_Explicit;
+                        `LexTop, T.Q_Explicit;
                       ]
-                    | _ -> T.mk_app (quote LexCons) [
+                    | _ -> T.mk_app (`LexCons) [
                         tin, T.Q_Implicit;
                         T.pack (T.Tv_Var (T.bv_of_binder tin')), T.Q_Explicit;
-                        quote LexTop, T.Q_Explicit;
+                        `LexTop, T.Q_Explicit;
                       ]
                     in
                     let decr = T.pack (T.Tv_Abs tin' decr_body) in
-                    let decr_ty = T.pack (T.Tv_Arrow tin' (T.pack_comp (T.C_Total (quote lex_t) None))) in
+                    let decr_ty = T.pack (T.Tv_Arrow tin' (T.pack_comp (T.C_Total (`lex_t) None))) in
                     let decr_binder = T.fresh_binder decr_ty in
                     let x_tm = T.pack (T.Tv_Var (T.bv_of_binder x)) in
-                    let tin_decr = T.mk_app (quote tin_decr) [
+                    let tin_decr = T.mk_app (`tin_decr) [
                       tin, T.Q_Explicit;
                       decr, T.Q_Explicit;
                       x_tm, T.Q_Explicit;
                     ]
                     in
                     let body_pre_coerce = mk_do_while_body tin_decr tout body v in
-                    let body' = T.mk_app (quote do_while_body_res_intro) [
+                    let body' = T.mk_app (`do_while_body_res_intro) [
                       tin, T.Q_Explicit;
                       tout, T.Q_Explicit;
                       q, T.Q_Explicit;
@@ -220,7 +219,7 @@ let mk_do_while (#t: Type) (x: t) : T.Tac unit =
                     ]
                     in
                     let res =
-                      T.mk_app (quote rewrite_do_while) [
+                      T.mk_app (`rewrite_do_while) [
                         tin, T.Q_Explicit;
                         tout, T.Q_Explicit;
                         q, T.Q_Explicit;

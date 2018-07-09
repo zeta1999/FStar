@@ -39,7 +39,7 @@ let visible_predicate (x:int) = True
 (*   assert_by_tactic (forall (x:int). x==0 ==> (forall (y:int). y==0 ==> x==y) /\ (forall (z:int). z==0 ==> x==z) /\ visible_boolean x) *)
 (*                    rewrite_all_equalities; //we're left with (b2t (visible_boolean 0)), since we didn't ask for it to be normalized *)
 (*   assert_by_tactic (forall (x:int). x==0 ==> (forall (y:int). y==0 ==> x==y) /\ (forall (z:int). z==0 ==> x==z) /\ visible_predicate x) //we're left with True, since it is explicit unfolded away *)
-(*                    (visit (unfold_definition_and_simplify_eq (quote visible_predicate))) *)
+(*                    (visit (unfold_definition_and_simplify_eq (`visible_predicate))) *)
 
 let local_let_bindings =
   assert_by_tactic (let x = 10 in x + 0 == 10) trivial
@@ -69,17 +69,17 @@ let sqintro (x:'a) : squash 'a = ()
 
 let test_exact (x:nat) (y:nat) =
   assert_by_tactic (op_Multiply x y == op_Multiply y x)
-                   (fun () -> exact (quote (sqintro (mul_comm x y))))
+                   (fun () -> exact (`(sqintro (mul_comm (`@x) (`@y)))))
 
 let test_apply (x:nat) (y:nat) =
   assert_by_tactic (op_Multiply x y == op_Multiply y x)
-                   (fun () -> apply_lemma (quote lemma_mul_comm))
+                   (fun () -> apply_lemma (`lemma_mul_comm))
 
 let mul_commute_ascription () : Tac unit =
     let g = cur_goal () in
     match term_as_formula g with
     | Comp (Eq _) _ _ ->
-        apply_lemma (quote lemma_mul_comm)
+        apply_lemma (`lemma_mul_comm)
     | _ ->
         fail "Not an equality"
 
@@ -95,7 +95,7 @@ let test_apply_ascription (x:nat) (y:nat) =
 (* let test_apply_ascription_fail (x:nat) (y:nat) = *)
 (*   assert (op_Multiply x y == op_Multiply y x) *)
 (*   <: Tot unit *)
-(*   by (apply_lemma (quote lemma_mul_comm)) *)
+(*   by (apply_lemma (`lemma_mul_comm)) *)
 
 let test_inspect =
   assert_by_tactic True

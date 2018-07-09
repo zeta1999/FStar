@@ -79,9 +79,9 @@ let unfold_logxor64 (x y: U64.t) : Lemma
 /// Now, here's a tactic that will try to rewrite the goal
 /// using one of the above three lemmas or fail
 let unfold64 () : Tac unit =
-  or_else (fun () -> mapply (quote unfold_logand64))
-          (fun () -> or_else (fun () -> mapply (quote unfold_logor64))
-                             (fun () -> mapply (quote unfold_logxor64)))
+  or_else (fun () -> mapply (`unfold_logand64))
+          (fun () -> or_else (fun () -> mapply (`unfold_logor64))
+                             (fun () -> mapply (`unfold_logxor64)))
 
 let aux () : Tac unit = or_else unfold64 (fun () -> fail "SKIP")
 

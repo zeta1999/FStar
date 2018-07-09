@@ -25,7 +25,7 @@ let test (p:(unit -> Type0)) (q:(unit -> Type0))
                norm [];
                (* dump "C"; *)
                let hh = intro () in
-               apply (quote return_squash);
+               apply (`return_squash);
                exact (pack (Tv_Var (bv_of_binder hh)));
                (* dump "D"; *)
                exact (pack (Tv_Var (bv_of_binder h))) )

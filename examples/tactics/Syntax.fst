@@ -6,7 +6,7 @@ open FStar.Reflection.Arith
 let quote_sanity_check =
     assert_by_tactic True
                      (fun () ->
-                          let t = quote (1+1) in
+                          let t = `(1+1) in
                           match inspect t with
                           | Tv_App _ _ -> ()
                           | _ -> fail ("oops!: " ^ term_to_string t))
@@ -23,7 +23,7 @@ let test1 = 24
 
 let test2 = assert_by_tactic True
                              (fun () ->
-                                  let x = quote test1 in
+                                  let x = `test1 in
                                   match inspect x with
                                   | Tv_FVar fv -> ()
                                   | _ -> fail "wat")
@@ -54,7 +54,7 @@ let rec blah (t : term) : Tac term =
 
 let _ = assert_by_tactic True
                          (fun () ->
-                              let t = quote (1+1) in
+                              let t = `(1+1) in
                               let t' = blah t in
                               if term_eq t t'
                               then ()
@@ -62,14 +62,14 @@ let _ = assert_by_tactic True
 
 let _ = assert_by_tactic True
                          (fun () ->
-                              let t = quote blah in
+                              let t = `blah in
                               match inspect t with
                               | Tv_FVar _ -> ()
                               | _ -> fail "Free variable did not return an FV")
 
 let _ = assert_by_tactic True
                          (fun () ->
-                              let t = quote (5 == 2 + 3) in
+                              let t = `(5 == 2 + 3) in
                               match term_as_formula' t with
                               | Comp (Eq _) _ _ -> ()
                               | f -> fail ("term_as_formula did not recognize an equality: " ^ formula_to_string f)
@@ -77,7 +77,7 @@ let _ = assert_by_tactic True
 
 let _ = assert_by_tactic True
                          (fun () ->
-                            let t = quote ((fun (x:int) -> x) 5) in
+                            let t = `((fun (x:int) -> x) 5) in
                             match inspect t with
                             | Tv_App _ _ -> ()
                             | Tv_Const (C_Int 5) -> fail "Quoted term got reduced!"
@@ -85,7 +85,7 @@ let _ = assert_by_tactic True
 
 let _ = assert_by_tactic True
                          (fun () ->
-                            let t = quote ((x:int) -> x == 2 /\ False) in
+                            let t = `((x:int) -> x == 2 /\ False) in
                             match term_as_formula' t with
                             | Forall _ _ -> ()
                             | _ -> fail ("This should be a forall: " ^ term_to_string t))
@@ -97,7 +97,7 @@ let _ = assert_by_tactic True
 // Tweaking inference to do some normalization could get rid of this, I think..
 let _ = assert_by_tactic True
                          (fun () ->
-                            let t = quote ((y:int) -> (x:int) -> x + 2 == 5) in
+                            let t = `((y:int) -> (x:int) -> x + 2 == 5) in
                             match term_as_formula t with
                             | Implies _ _ -> fail "" // make it fail for now, but this is the wanted result, I think
                             | f -> debug ("This should be an implication: " ^ formula_to_string f);
@@ -108,7 +108,7 @@ open FStar.Tactics
 
 let arith_test1 =
     assert_by_tactic True
-                    (fun () -> let t = quote (1 + 2) in
+                    (fun () -> let t = `(1 + 2) in
                                match run_tm (is_arith_expr t) with
                                | Inr (Plus (Lit 1) (Lit 2)) -> debug "alright!"
                                | Inl s -> fail ("oops: " ^ s)
@@ -124,7 +124,7 @@ let arith_test2 (x : int) =
 
 let _ = assert_by_tactic True
             (fun () ->
-                let t = quote (let x = 2 in x + 6) in
+                let t = `(let x = 2 in x + 6) in
                 match inspect t with
                 | Tv_Let r bv t1 t2 -> (
                    debug ("r = " ^ (if r then "true" else "false"));
@@ -136,7 +136,7 @@ let _ = assert_by_tactic True
 
 let _ = assert_by_tactic True
             (fun () ->
-                let t = quote (let rec f x = if (x <= 0) then 1 else f (x - 1) in f 5) in
+                let t = `(let rec f x = if (x <= 0) then 1 else f (x - 1) in f 5) in
                 match inspect t with
                 | Tv_Let r bv t1 t2 -> (
                    debug ("r = " ^ (if r then "true" else "false"));

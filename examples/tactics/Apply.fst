@@ -9,6 +9,6 @@ val refl : (a:Type) -> (x:a) -> Lemma (x == x)
 let refl a x = ()
 
 let tau () : Tac unit =
-    apply_lemma (quote refl)
+    apply_lemma (`refl)
 
 let lem1 = assert_by_tactic (x == x) tau

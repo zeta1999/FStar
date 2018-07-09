@@ -101,8 +101,7 @@ let rec cutlast (l : list 'a) : list 'a * 'a =
     | [x] -> [], x
     | x::xs -> let ys, y = cutlast xs in x::ys, y
 
-let instrument (f : 'a) : Tac unit =
-    let t = quote f in
+let instrument (t : term) : Tac unit =
     // name
     let n = match inspect t with
             | Tv_FVar fv -> fv
@@ -139,7 +138,7 @@ let rec fall (n : mynat) : Tot mynat =
 let rec fall' (n : mynat) (l : list mynat) =
     // We need to annotate the result type.. which sucks.
     // But we could use a tactic later :)
-    synth_by_tactic #(mynat -> list mynat -> (list mynat * mynat)) (fun () -> instrument fall) n l
+    synth_by_tactic #(mynat -> list mynat -> (list mynat * mynat)) (fun () -> instrument (`fall)) n l
 #set-options "--admit_smt_queries false"
 
 let _ = assert (fall' (S (S (S Z))) [] == ([Z; S Z; S (S Z); S (S (S Z))], Z))
@@ -156,7 +155,7 @@ let rec fact (n : nat) : Tot nat = fact_aux n 1
 
 #set-options "--admit_smt_queries true"
 let rec fact_aux' (n acc : nat) (tr : list (nat * nat)) : Tot (list (nat * nat) * nat) =
-    synth_by_tactic #(nat -> nat -> list (nat * nat) -> (list (nat * nat) * nat)) (fun () -> instrument fact_aux) n acc tr
+    synth_by_tactic #(nat -> nat -> list (nat * nat) -> (list (nat * nat) * nat)) (fun () -> instrument (`fact_aux)) n acc tr
 #set-options "--admit_smt_queries false"
 
 let _ = assert (fact_aux' 5 1 [] == ([(0, 120); (1, 120); (2, 60); (3, 20); (4, 5); (5, 1)], 120))
@@ -166,7 +165,7 @@ let _ = assert (fact_aux' 5 1 [] == ([(0, 120); (1, 120); (2, 60); (3, 20); (4, 
 #set-options "--admit_smt_queries true"
 // TODO: I have to use `int` for the codomains or it complains... why? I'm even admitting SMT
 let rec fact' (n : nat) (tr : list nat) : Tot (list nat * int) =
-    synth_by_tactic #(nat -> list nat -> (list nat * int)) (fun () -> instrument fact) n tr
+    synth_by_tactic #(nat -> list nat -> (list nat * int)) (fun () -> instrument (`fact)) n tr
 #set-options "--admit_smt_queries false"
 
 let _ = assert (fact' 5 [] == ([5], 120))

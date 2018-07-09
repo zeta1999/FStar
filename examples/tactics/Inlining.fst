@@ -29,21 +29,21 @@ let create_add_1 (u:unit) : St unit =
   pop_frame();
   ()
 
-let normalize (#t:Type) (x:t) : Tac unit =
+let normalize (tm:term) : Tac unit =
   dup ();
-  debug (term_to_string (quote x));
-  exact (quote x);
+  debug (term_to_string tm);
+  exact tm;
   norm [delta; delta_only [`%(add_1)]; delta_only [`%(set_to_1)]];
   trefl ()
 
 // add_2' is like add_2 but has add_1 inlined (printing verifies this)
-let add_2' : int -> int = synth_by_tactic (fun () -> normalize ((fun (x:int) -> add_1 (add_1 x))))
+let add_2' : int -> int = synth_by_tactic (fun () -> normalize (`(fun (x:int) -> add_1 (add_1 x))))
 
-let create_add_1' : unit -> St unit = synth_by_tactic (fun () -> normalize ((fun (u:unit) ->
+let create_add_1' : unit -> St unit = synth_by_tactic (fun () -> normalize (`((fun (u:unit) ->
              push_frame();
              let x = create 0ul (U32.uint_to_t (add_1 1)) in
              pop_frame();
-             ()) <: unit -> St unit))
+             ()) <: unit -> St unit)))
 
 // we want to inline set_to_1 in this function
 let create_and_set (u:unit) : St unit =
@@ -54,9 +54,9 @@ let create_and_set (u:unit) : St unit =
   ()
 
 let create_and_set' : unit -> St unit =
-  synth_by_tactic (fun () -> normalize ((fun (u:unit) ->
+  synth_by_tactic (fun () -> normalize (`((fun (u:unit) ->
     push_frame();
     let x = create 0ul 1ul in
     set_to_1 x;
     pop_frame();
-    ()) <: unit -> St unit))
+    ()) <: unit -> St unit)))

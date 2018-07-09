@@ -17,8 +17,8 @@ let test_cases (h : (p \/ q)) : Lemma r =
         (fun () ->
             let t = quote h in
             cases_or t;
-            apply_lemma (quote f);
-            apply_lemma (quote g);
+            apply_lemma (`f);
+            apply_lemma (`g);
             qed ())
 
 // Taking a squashed hypothesis, we can unsquash it as we're in an irrelevant context
@@ -28,8 +28,8 @@ let test_cases_unsquash (h : squash (p \/ q)) : Lemma r =
             let t = quote h in
             let t = unsquash t in
             cases_or t;
-            apply_lemma (quote f);
-            apply_lemma (quote g);
+            apply_lemma (`f);
+            apply_lemma (`g);
             qed ())
 
 (* assume val pp : Type0 *)
@@ -42,13 +42,13 @@ let test_cases_unsquash (h : squash (p \/ q)) : Lemma r =
 (* let test_em () : Lemma qq = *)
 (*     assert_by_tactic qq *)
 (*                      (fun () -> *)
-(*                           let empp = quote ll in *)
+(*                           let empp = (`ll) in *)
 (*                           let p_or_not_p = get_lemma empp in *)
 (*                           let p_or_not_p = unsquash p_or_not_p in *)
 (*                           let h_pp_npp = cases p_or_not_p in *)
 (*                           let h_pp, h_npp = h_pp_npp in *)
-(*                           apply_lemma (quote ff); exact (h_pp); *)
-(*                           apply_lemma (quote gg); exact (h_npp); *)
+(*                           apply_lemma (`ff); exact (h_pp); *)
+(*                           apply_lemma (`gg); exact (h_npp); *)
 (*                           qed () *)
 (*                          ) *)
 
@@ -61,12 +61,12 @@ let test_cases_bool (b:bool) : Lemma (pred b) =
         (fun () ->
             let b = quote b in
             cases_bool b;
-            exact (quote pred_true);
-            exact (quote pred_false);
+            exact (`pred_true);
+            exact (`pred_false);
             qed ())
 
 let test_cases_bool_2 (x:int) : Lemma (x + x == 2 * x) =
     assert_by_tactic (x + x == 2 * x)
         (fun () ->
-            let t =  quote (x = 0) in
+            let t = quote (x = 0) in
             cases_bool t)

@@ -16,7 +16,7 @@ let rec example (x: U32.t) : Tot (m unit) (decreases (U32.v x)) =
   else example (U32.div x 256ul)
 
 let example_do_while : (x: U32.t) -> Tot (y: m unit { y () == example x () } ) =
-  T.synth_by_tactic (fun () -> mk_do_while example )
+  T.synth_by_tactic (fun () -> mk_do_while (`example) )
 
 inline_for_extraction
 let example_sz (x: U32.t) : Tot (m_sz (example x)) =
@@ -114,7 +114,7 @@ let rec print_list_cipher_suite_spec (l: list cipher_suite) : Tot (m unit) =
 
 let print_list_cipher_suite_spec_do_while :
   (l: list cipher_suite) -> Tot (y: m unit { y () == print_list_cipher_suite_spec l () } )
-= T.synth_by_tactic (fun () -> mk_do_while print_list_cipher_suite_spec )
+= T.synth_by_tactic (fun () -> mk_do_while (`print_list_cipher_suite_spec) )
 
 inline_for_extraction
 let print_list_cipher_suite_sz (l: list cipher_suite) : Tot (m_sz (print_list_cipher_suite_spec l)) =

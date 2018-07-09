@@ -22,12 +22,12 @@ let tau () : Tac unit =
     let b = implies_intro () in
 
     binder_retype b; // call retype, get a goal `p == ?u`
-    let pp = quote p in
-    let rr = quote r in
+    let pp = `p in
+    let rr = `r in
     grewrite pp rr; // rewrite p to q, get `q == ?u`
     trefl (); // unify
 
-    apply_lemma (quote l); //prove (p == q), asked by grewrite
+    apply_lemma (`l); //prove (p == q), asked by grewrite
 
     let e = cur_env () in
     match binders_of_env e with
@@ -38,7 +38,7 @@ let tau () : Tac unit =
         then fail "binder was not retyped?"
         else ();
 
-        apply_lemma (quote l2);
+        apply_lemma (`l2);
         assumption' ();
         qed ()
     | _ ->

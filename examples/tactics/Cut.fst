@@ -11,7 +11,7 @@ assume val p2 : psi -> squash phi
 let _ =
     assert_by_tactic phi
         (fun () ->
-             let psi' = quote psi in
+             let psi' = `psi in
              let _ = tcut psi' in
              flip ();
              exact (`p1); // TODO: kinda pointless example

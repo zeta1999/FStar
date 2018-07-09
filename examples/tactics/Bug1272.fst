@@ -9,12 +9,12 @@ let unsquash #a : a -> squash a =
 
 let broken (a: Type0) =
   assert_by_tactic a (fun () ->
-                        apply (quote (unsquash #a));
+                        apply (`(unsquash #(`@a)));
                         let xx : a = admit () in
                         exact (quote xx))
 
 let yy : (Type0 -> unit) =
-  synth_by_tactic (fun () -> exact (norm_term [] (quote broken)))
+  synth_by_tactic (fun () -> exact (norm_term [] (`broken)))
 
 let _ =
   assert_by_tactic True

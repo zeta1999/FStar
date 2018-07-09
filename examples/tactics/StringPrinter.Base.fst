@@ -289,16 +289,16 @@ let tm_eq_fvar (t1 t2: T.term) : T.Tac bool =
   | _ -> false
 
 let ret_tm () : T.Tac T.term =
-  quote ret
+  `ret
 
 let bind_tm () : T.Tac T.term =
-  quote bind
+  `bind
 
 let seq_tm () : T.Tac T.term =
-  quote seq
+  `seq
 
 let print_char_tm () : T.Tac T.term =
-  quote print_char
+  `print_char
 
 inline_for_extraction
 let coerce_sz
@@ -392,7 +392,7 @@ let compile_fvar
     let t' = T.norm_term_env env [iota] t' in // beta implicit
     T.debug "after norm_term";
     let res' = compile ty t' in
-    let u = quote () in
+    let u = `() in
     let res = T.mk_app coerce_sz_tm [
       ty, T.Q_Explicit;
       t', T.Q_Explicit;
@@ -415,13 +415,13 @@ let compile_ifthenelse
   match ins with
   | T.Tv_Match cond [T.Pat_Constant T.C_True, tt; _, tf] ->
     (* ifthenelse: the second branch can be a wildcard or false *)
-    let ct = quote (cond_eq true) in
+    let ct = `(cond_eq true) in
     let ut = T.mk_app ct [cond, T.Q_Explicit] in
     let vt = T.fresh_binder_named "name1eman" ut in
     let ft = T.pack (T.Tv_Abs vt tt) in
     let ft_sz_body = compile ty tt in
     let ft_sz = T.pack (T.Tv_Abs vt ft_sz_body) in
-    let cf = quote (cond_eq false) in
+    let cf = `(cond_eq false) in
     let uf = T.mk_app cf [cond, T.Q_Explicit] in
     let vf = T.fresh_binder_named "name2eman" uf in
     let ff = T.pack (T.Tv_Abs vf tf) in
@@ -472,11 +472,11 @@ let mk_sz'
   (ty: T.term) (t: T.term)
 : T.Tac T.term
 = compile
-    (quote ret_sz)
-    (quote bind_sz)
-    (quote print_char_sz)
-    (quote coerce_sz)
-    (quote ifthenelse_sz)
+    (`ret_sz)
+    (`bind_sz)
+    (`print_char_sz)
+    (`coerce_sz)
+    (`ifthenelse_sz)
     env
     ty
     t
@@ -614,11 +614,11 @@ let mk_st'
   (ty: T.term) (t: T.term)
 : T.Tac T.term
 = compile
-    (quote ret_st)
-    (quote bind_st)
-    (quote print_char_st)
-    (quote coerce_st)
-    (quote ifthenelse_st)
+    (`ret_st)
+    (`bind_st)
+    (`print_char_st)
+    (`coerce_st)
+    (`ifthenelse_st)
     env
     ty
     t
@@ -745,7 +745,7 @@ let phi_tac (#ty: Type0) (m: m ty) : T.Tac unit =
     let ty' = quote ty in
     let t_sz = mk_sz' (T.cur_env ()) ty' x in
     let t_st = mk_st' (T.cur_env ()) ty' x in
-    let q = quote phi in
+    let q = `phi in
     let t = mk_app q [
       ty', Q_Implicit;
       x, Q_Explicit;
