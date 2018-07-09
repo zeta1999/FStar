@@ -91,16 +91,23 @@ let canon_monoid (ta:term) (tm:term) : Tac unit =
   let m : monoid a = unquote tm in
   match term_as_formula g with
   | Comp (Eq (Some t)) me1 me2 ->
-      if term_eq t ta then
-        let r1 = reification m me1 in
-        let r2 = reification m me2 in
-        change_sq (quote (mdenote m r1 == mdenote m r2));
+      if term_eq t ta then begin
+        dump "GG 1";
+        let r1 = reification tm me1 in
+        dump "GG 2";
+        let r2 = reification tm me2 in
+        dump "GG 3";
+        let tm = `(mdenote #(`#(ta)) (`#tm) (`@r1) == mdenote #(`#(ta)) (`#tm) (`@r2)) in
+        dump "GG 4";
+	dump ("GG tm = " ^ term_to_string tm);
+        dump "GG 5";
+        change_sq tm;
         apply (`monoid_reflect);
         norm [delta_only ["CanonMonoid.mldenote";
                           "CanonMonoid.flatten";
                           "FStar.List.Tot.Base.op_At";
                           "FStar.List.Tot.Base.append"]]
-      else fail "Goal should be an equality at the right monoid type"
+      end else fail "Goal should be an equality at the right monoid type"
   | _ -> fail "Goal should be an equality"
 
 let lem0 (a b c d : int) =
