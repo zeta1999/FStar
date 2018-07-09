@@ -2501,7 +2501,7 @@ let rec (norm :
                       {
                         FStar_TypeChecker_Cfg.steps =
                           (let uu___298_8579 =
-                             cfg.FStar_TypeChecker_Cfg.steps  in
+                             FStar_TypeChecker_Cfg.default_steps  in
                            {
                              FStar_TypeChecker_Cfg.beta =
                                (uu___298_8579.FStar_TypeChecker_Cfg.beta);
@@ -2544,10 +2544,8 @@ let rec (norm :
                                (uu___298_8579.FStar_TypeChecker_Cfg.no_full_norm);
                              FStar_TypeChecker_Cfg.check_no_uvars =
                                (uu___298_8579.FStar_TypeChecker_Cfg.check_no_uvars);
-                             FStar_TypeChecker_Cfg.unmeta =
-                               (uu___298_8579.FStar_TypeChecker_Cfg.unmeta);
-                             FStar_TypeChecker_Cfg.unascribe =
-                               (uu___298_8579.FStar_TypeChecker_Cfg.unascribe);
+                             FStar_TypeChecker_Cfg.unmeta = true;
+                             FStar_TypeChecker_Cfg.unascribe = true;
                              FStar_TypeChecker_Cfg.in_full_norm_request =
                                (uu___298_8579.FStar_TypeChecker_Cfg.in_full_norm_request);
                              FStar_TypeChecker_Cfg.weakly_reduce_scrutinee =
@@ -2560,7 +2558,8 @@ let rec (norm :
                         FStar_TypeChecker_Cfg.debug =
                           (uu___297_8576.FStar_TypeChecker_Cfg.debug);
                         FStar_TypeChecker_Cfg.delta_level =
-                          (uu___297_8576.FStar_TypeChecker_Cfg.delta_level);
+                          [FStar_TypeChecker_Env.Unfold
+                             FStar_Syntax_Syntax.delta_constant];
                         FStar_TypeChecker_Cfg.primitive_steps =
                           (uu___297_8576.FStar_TypeChecker_Cfg.primitive_steps);
                         FStar_TypeChecker_Cfg.strong =
