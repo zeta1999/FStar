@@ -1,4 +1,4 @@
-module MiniParseExample.Aux
+module MiniParseExample2.Aux
 
 module U8 = FStar.UInt8
 
