@@ -535,6 +535,20 @@ let __tc_ghost (e : env) (t : term) : tac<(term * typ * guard_t)> =
                                                   msg
            end))
 
+let __tc_lax (e : env) (t : term) : tac<(term * typ * guard_t)> =
+    bind get (fun ps ->
+    mlog (fun () -> BU.print1 "Tac> __tc(%s)\n" (Print.term_to_string t)) (fun () ->
+    let e = {e with uvar_subtyping=false} in
+    let e = {e with lax = true} in
+    try let t, lc, g = TcTerm.tc_term e t in
+        ret (t, lc.res_typ, g)
+    with | Errors.Err (_, msg)
+         | Errors.Error (_, msg, _) -> begin
+           fail3 "Cannot type %s in context (%s). Error = (%s)" (tts e t)
+                                                  (Env.all_binders e |> Print.binders_to_string ", ")
+                                                  msg
+           end))
+
 let istrivial (e:env) (t:term) : bool =
     let steps = [Env.Reify; Env.UnfoldUntil delta_constant; Env.Primops; Env.Simplify; Env.UnfoldTac; Env.Unmeta] in
     let t = normalize steps e t in
@@ -600,8 +614,8 @@ let proc_guard (reason:string) (e : env) (g : guard_t) : tac<unit> =
 
 let tc (t : term) : tac<typ> = wrap_err "tc" <|
     bind (cur_goal ()) (fun goal ->
-    bind (__tc (goal_env goal) t) (fun (_, typ, _) ->
-    (* What about the guard? It doesn't matter! tc is only
+    bind (__tc_lax (goal_env goal) t) (fun (_, typ, _) ->
+    (* Why lax? What about the guard? It doesn't matter! tc is only
      * a way for metaprograms to query the typechecker, but
      * the result has no effect on the proofstate and nor is it
      * taken for a fact that the typing is correct. *)
@@ -770,7 +784,8 @@ let norm_term_env (e : env) (s : list<EMB.norm_step>) (t : term) : tac<term> = w
                | _ -> FStar.Options.peek ()
     in
     mlog (fun () -> BU.print1 "norm_term_env: t = %s\n" (Print.term_to_string t)) (fun () ->
-    bind (__tc e t) (fun (t, _, _) ->
+    // only for elaborating lifts and all that, we don't care if it's actually well-typed
+    bind (__tc_lax e t) (fun (t, _, _) ->
     let steps = [Env.Reify; Env.UnfoldTac]@(N.tr_norm_steps s) in
     let t = normalize steps ps.main_context t in
     mlog (fun () -> BU.print1 "norm_term_env: t' = %s\n" (Print.term_to_string t)) (fun () ->
