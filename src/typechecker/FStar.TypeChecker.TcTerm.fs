@@ -709,7 +709,10 @@ and tc_match (env : Env.env) (top : term) : term * lcomp * guard_t =
     let env1, topt = Env.clear_expected_typ env in
     let env1 = instantiate_both env1 in
     let e1, c1, g1 = tc_term env1 e1 in
+    let g1 = Rel.solve_deferred_constraints env1 g1 in // needed for coercions
     let e1, c1, eqns =
+        if not env.phase1 then e1, c1, eqns else (
+        BU.print2 "GG looking for a view from (%s) of type %s\n" (Print.term_to_string e1) (Print.lcomp_to_string c1);
         match TcUtil.coerce_views env e1 c1 with
         | Some (e1, c1) -> begin
             BU.print1 "GG headify_branches of [%s]\n"
@@ -720,7 +723,9 @@ and tc_match (env : Env.env) (top : term) : term * lcomp * guard_t =
             e1, c1, eqns
             end
         | None ->
-            e1, c1, eqns
+            (BU.print_string "GG no coercion\n";
+            e1, c1, eqns)
+        )
     in
     let env_branches, res_t, g1 =
       match topt with

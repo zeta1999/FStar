@@ -978,9 +978,11 @@ let coerce_views (env:Env.env) (e:term) (lc:lcomp) : option<(term * lcomp)> =
         Some <| coerce_with env e lc C.inspect S.t_term_view
     | Tm_fvar fv, tys when C.is_tuple_constructor_lid (lid_of_fv fv) ->
         let ehd, eargs = U.head_and_args e in
-        begin match (SS.compress ehd).n, eargs with
-        | Tm_fvar hd, elms when C.is_tuple_datacon_lid (lid_of_fv fv) && List.length tys = List.length elms ->
-            None
+        begin match (SS.compress ehd).n with
+        | Tm_fvar hd when C.is_tuple_datacon_lid (lid_of_fv fv) && List.length tys = List.length eargs ->
+            let e = S.mk (Tm_app (hd, eargs) None e.pos in
+            let lc = lc in
+            Some (e, lc)
         | _ ->
             None
         end

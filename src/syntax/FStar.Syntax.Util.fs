@@ -2037,30 +2037,32 @@ let rec headify_branches (brs : list<S.branch>) : list<S.branch> =
     let brs0 = brs in
     match brs with
     | [] -> []
-    | (pat, Some w , e) :: brs -> brs0 // Do nothing if there's a `when` clause
-    | (pat, None, e) :: brs ->
-        begin
-        let (pat, None, e) = Subst.open_branch (pat, None, e) in
-        match pat.v with
-        | Pat_cons (hd, args) ->
-            let pats, imps = List.unzip args in
-            let rng = pat.p in
-            let tun = mk Tm_unknown None rng in
-            let bvs = List.mapi (fun i p -> gen_bv ("a" ^ string_of_int i) (Some rng) tun)
-                                pats in
-            let pat' = { pat with v = Pat_cons (hd, List.zip (List.map (fun p' -> { v = Pat_var p'; p = rng }) bvs)
-                                                             imps) } in
-            let br1 : S.branch = ({v = Pat_cons (mk_tuple_data_fv (List.length args) rng,
-                                       List.map (fun p -> (p, false)) pats)
-                                  ; p = rng}, None, e) in
-            let w = new_bv (Some rng) tun in
-            let br2 : S.branch = ({v = Pat_var w ; p = rng}, None, mk (Tm_match (bv_to_name w, brs)) None rng) in
-            let submatch = mk (Tm_match (mk_tuple_data rng (List.map bv_to_name bvs),
-                                            [Subst.close_branch br1; Subst.close_branch br2])) None rng
-            in
-            let br' = (pat', None, submatch) in
-            let br' = Subst.close_branch br' in
-            br'::(headify_branches brs)
+    | br::brs -> begin match br with
+     | (pat, Some w , e) -> brs0 // Do nothing if there's a `when` clause
+     | (pat, None, e) ->
+         begin
+         let (pat, None, e) = Subst.open_branch (pat, None, e) in
+         match pat.v with
+         | Pat_cons (hd, args) ->
+             let pats, imps = List.unzip args in
+             let rng = pat.p in
+             let tun = mk Tm_unknown None rng in
+             let bvs = List.mapi (fun i _p -> gen_bv ("a" ^ string_of_int i) (Some rng) tun)
+                                 pats in
+             let pat' = { pat with v = Pat_cons (hd, List.zip (List.map (fun p' -> { v = Pat_var p'; p = rng }) bvs)
+                                                              imps) } in
+             let br1 : S.branch = ({v = Pat_cons (mk_tuple_data_fv (List.length args) rng,
+                                        List.map (fun p -> (p, false)) pats)
+                                   ; p = rng}, None, e) in
+             let w = new_bv (Some rng) tun in
+             let br2 : S.branch = ({v = Pat_var w ; p = rng}, None, mk (Tm_match (bv_to_name w, brs)) None rng) in
+             let submatch = mk (Tm_match (mk_tuple_data rng (List.map bv_to_name bvs),
+                                             [Subst.close_branch br1; Subst.close_branch br2])) None rng
+             in
+             let br' = (pat', None, submatch) in
+             let br' = Subst.close_branch br' in
+             br'::(headify_branches brs)
 
-        | _ -> brs0
-        end
+         | _ -> br :: (headify_branches brs)
+         end
+    end
