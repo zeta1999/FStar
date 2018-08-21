@@ -8,27 +8,63 @@ type st (a:Type) =
   | Used   : a -> st a
   | Freed  : st a
 
+type path = | L of path | R of path | O
+
+type addr = path * nat
+type image = (a:Type0 & rel:(option (preorder a)) & st a)
+
 private noeq type heap_rec = {
-  next_addr: (x: nat);
-  memory   : (x: nat) -> Tot (option (a:Type0 & rel:(option (preorder a)) & st a))
+  pos : path;
+  next_addr: path -> nat;
+  memory   : (x: addr) -> Tot (option image)
 }
 
-let heap = h:heap_rec{(forall (n:nat). n >= h.next_addr ==> None? (h.memory n))}
+let pos_of h = h.pos
+
+let heap = h:heap_rec{(forall (p:path) (n:nat). n >= h.next_addr p ==> None? (h.memory (p, n)))}
+
+let goL (h:heap): heap = { h with pos = L h.pos }
+let goR (h:heap): heap = { h with pos = R h.pos }
+
+let rec prefix (p1 p2 : path) =
+  match p1, p2 with
+  | O, _ -> True
+  | L p1, L p2
+  | R p1, R p2 -> prefix p1 p2
+  | _ -> False
+
+let rec prefix_refl (p : path) : Lemma (prefix p p) [SMTPat (prefix p p)] =
+  match p with
+  | O -> ()
+  | L p
+  | R p -> prefix_refl p
+
+let rec prefix_trans (p1 p2 p3 : path) : Lemma (requires (prefix p1 p2 /\ prefix p2 p3))
+					       (ensures (prefix p1 p3))
+					       [ SMTPatOr [[SMTPat (prefix p1 p2); SMTPat (prefix p2 p3)]
+					                  ; [SMTPat (prefix p1 p2); SMTPat (prefix p1 p3)]
+					                  ; [SMTPat (prefix p1 p3); SMTPat (prefix p2 p3)] ] ] =
+    match p1 with
+    | O -> ()
+    | L p1 -> let L p2 = p2 in let L p3 = p3 in prefix_trans p1 p2 p3
+    | R p1 -> let R p2 = p2 in let R p3 = p3 in prefix_trans p1 p2 p3
 
 let equal h1 h2 =
   let _ = () in
-  h1.next_addr = h2.next_addr /\
+  h1.pos = h2.pos /\
+  FStar.FunctionalExtensionality.feq h1.next_addr h2.next_addr /\
   FStar.FunctionalExtensionality.feq h1.memory h2.memory
 
 let equal_extensional h1 h2 = ()
 
 let emp = {
-  next_addr = 0;
-  memory    = (fun (r:nat) -> None)
+  pos = O;
+  next_addr = (fun _ -> 0);
+  memory    = (fun (r:addr) -> None)
 }
 
 private noeq type mref' (a:Type0) (rel:preorder a) :Type0 = {
-  addr: nat;
+  addr: addr;
   init: a;
 }
 
@@ -42,7 +78,7 @@ let contains #a #rel h r =
   let _ = () in
   Some? (h.memory r.addr) /\
   (let Some (| a1, pre_opt, v |) = h.memory r.addr in
-   a == a1 /\ Some? pre_opt /\ Some?.v pre_opt == rel /\ Used? v)
+   a == a1 /\ pre_opt == Some rel /\ Used? v)
 
 let addr_unused_in n h = None? (h.memory n)
 
@@ -67,6 +103,16 @@ let sel #a #rel h r =
     sel_tot #a h r
   else r.init
 
+let coincide (h1 h2 : heap) #a #rel (r : mref a rel) =
+        (h1 `contains` r ==> h2 `contains` r /\ sel h1 r == sel h2 r)
+     /\ (r `freed_in` h1 ==> r `freed_in` h2)
+     /\ (r `unused_in` h1 ==> r `unused_in` h2)
+
+let frozen_on (pf:path) (h1 h2 : heap) : prop =
+  (forall (p:path). ~(prefix pf p) ==> h1.next_addr p == h2.next_addr p) /\
+  (forall a rel (r:mref a rel). ~(prefix pf (fst (addr_of r))) ==> coincide h1 h2 r)
+
+
 let upd_tot' (#a: Type0) (#rel: preorder a) (h: heap) (r: mref a rel) (x: a) =
   { h with memory = (fun r' -> if r.addr = r'
                             then Some (| a, Some rel, Used x |)
@@ -74,13 +120,19 @@ let upd_tot' (#a: Type0) (#rel: preorder a) (h: heap) (r: mref a rel) (x: a) =
 
 let upd_tot #a #rel h r x = upd_tot' h r x
 
+let override (p:path) (x:nat) (f : path -> nat) : path -> nat =
+  fun p' -> if p = p'
+         then x
+	 else f p'
+
 let upd #a #rel h r x =
   if FStar.StrongExcludedMiddle.strong_excluded_middle (h `contains` r)
   then upd_tot' h r x
   else
-    if r.addr >= h.next_addr
+    if snd (r.addr) >= h.next_addr (fst r.addr)
     then
-      { next_addr = r.addr + 1;
+      { h with
+        next_addr = override (fst r.addr) (snd r.addr + 1) h.next_addr;
         memory    = (fun r' -> if r' = r.addr
                                  then Some (| a, Some rel, Used x |)
                                  else h.memory r') }
@@ -90,8 +142,10 @@ let upd #a #rel h r x =
                                 else h.memory r') }
 
 let alloc #a rel h x =
-  let r = { addr = h.next_addr; init = x } in
-  r, { next_addr = r.addr + 1;
+  let addr = h.next_addr h.pos in
+  let r = { addr = (h.pos, addr); init = x } in
+  r, { h with
+       next_addr = override h.pos (addr + 1) h.next_addr ;
        memory    = (fun r' -> if r' = r.addr
                                 then Some (| a, Some rel, Used x |)
                                 else h.memory r') }

@@ -8,6 +8,8 @@ open FStar.Preorder
 let set  = Set.set
 let tset = TSet.set
 
+val addr : eqtype
+
 val heap :Type u#1
 
 val equal: heap -> heap -> Type0
@@ -21,7 +23,7 @@ val emp :heap
 [@ assume_strictly_positive]
 val mref (a:Type0) (rel:preorder a) :Type0
 
-val addr_of: #a:Type0 -> #rel:preorder a -> mref a rel -> GTot nat
+val addr_of: #a:Type0 -> #rel:preorder a -> mref a rel -> GTot addr
 
 val compare_addrs:
   #a:Type0 -> #b:Type0 -> #rel1:preorder a -> #rel2:preorder b ->
@@ -29,8 +31,8 @@ val compare_addrs:
 
 val contains: #a:Type0 -> #rel:preorder a -> heap -> mref a rel -> Type0
 
-val addr_unused_in: nat -> heap -> Type0
-val addr_freed_in  : nat -> heap -> Type0
+val addr_unused_in: addr -> heap -> Type0
+val addr_freed_in  : addr -> heap -> Type0
 
 //val not_addr_unused_in_nullptr (h: heap) : Lemma (~ (addr_unused_in 0 h))
 
@@ -40,16 +42,16 @@ val freed_in: #a:Type0 -> #rel:preorder a -> mref a rel -> heap -> Type0
 let fresh (#a:Type) (#rel:preorder a) (r:mref a rel) (h0:heap) (h1:heap) =
   r `unused_in` h0 /\ h1 `contains` r
 
-let only_t (#a:Type0) (#rel:preorder a) (x:mref a rel) :GTot (tset nat) = TS.singleton (addr_of x)
+let only_t (#a:Type0) (#rel:preorder a) (x:mref a rel) :GTot (tset addr) = TS.singleton (addr_of x)
 
-let only (#a:Type0) (#rel:preorder a) (x:mref a rel) :GTot (set nat) = S.singleton (addr_of x)
+let only (#a:Type0) (#rel:preorder a) (x:mref a rel) :GTot (set addr) = S.singleton (addr_of x)
 
-let op_Hat_Plus_Plus (#a:Type0) (#rel:preorder a) (r:mref a rel) (s:set nat) :GTot (set nat) = S.union (only r) s
+let op_Hat_Plus_Plus (#a:Type0) (#rel:preorder a) (r:mref a rel) (s:set addr) :GTot (set addr) = S.union (only r) s
 
-let op_Plus_Plus_Hat (#a:Type0) (#rel:preorder a) (s:set nat) (r:mref a rel) :GTot (set nat) = S.union s (only r)
+let op_Plus_Plus_Hat (#a:Type0) (#rel:preorder a) (s:set addr) (r:mref a rel) :GTot (set addr) = S.union s (only r)
 
 let op_Hat_Plus_Hat (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (r1:mref a rel1) (r2:mref b rel2)
-  :GTot (set nat) = S.union (only r1) (only r2)
+  :GTot (set addr) = S.union (only r1) (only r2)
 
 val sel_tot: #a:Type0 -> #rel:preorder a -> h:heap -> r:mref a rel{h `contains` r} -> Tot a
 
@@ -63,19 +65,19 @@ val alloc: #a:Type0 -> rel:preorder a -> heap -> a -> Tot (mref a rel * heap)
 
 val free: #a:Type0 -> #rel:preorder a -> h:heap -> r:mref a rel{h `contains` r} -> Tot heap
 
-let modifies_t (s:tset nat) (h0:heap) (h1:heap) =
+let modifies_t (s:tset addr) (h0:heap) (h1:heap) =
   (forall (a:Type) (rel:preorder a) (r:mref a rel).{:pattern (sel h1 r)}
                                ((~ (TS.mem (addr_of r) s)) /\ h0 `contains` r) ==> sel h1 r == sel h0 r) /\
   (forall (a:Type) (rel:preorder a) (r:mref a rel).{:pattern (contains h1 r)}
                                h0 `contains` r ==> h1 `contains` r) /\
   (forall (a:Type) (rel:preorder a) (r:mref a rel).{:pattern (r `unused_in` h0)}
                                r `unused_in` h1 ==> r `unused_in` h0) /\
-  (forall (n: nat) . {:pattern (n `addr_unused_in` h0) }
+  (forall (n: addr) . {:pattern (n `addr_unused_in` h0) }
     n `addr_unused_in` h1 ==> n `addr_unused_in` h0
   )
 
 
-let modifies (s:set nat) (h0:heap) (h1:heap) = modifies_t (TS.tset_of_set s) h0 h1
+let modifies (s:set addr) (h0:heap) (h1:heap) = modifies_t (TS.tset_of_set s) h0 h1
 
 let equal_dom (h1:heap) (h2:heap) :GTot Type0 =
   (forall (a:Type0) (rel:preorder a) (r:mref a rel). h1 `contains` r <==> h2 `contains` r) /\
@@ -105,7 +107,7 @@ val lemma_distinct_addrs_distinct_types
 val lemma_distinct_addrs_distinct_preorders (u:unit)
   :Lemma (forall (a:Type0) (rel1 rel2:preorder a) (r1:mref a rel1) (r2:mref a rel2) (h:heap).
             {:pattern (h `contains` r1); (h `contains` r2)}
-            (h `contains` r1 /\ h `contains` r2 /\ rel1 =!= rel2) ==> addr_of r1 <> addr_of r2)
+            (h `contains` r1 /\ h `contains` r2 /\ rel1 =!= rel2) ==> addr_of r1 <> addr_of r2 /\ (~ (r1 === r2)))
 
 (*
  * AR: this is a bit surprising. i had to add ~ (r1 === r2) postcondition to make the lemma
@@ -157,7 +159,7 @@ val lemma_free_not_contained
 
 val lemma_free_addr_unused_in
   (#a: Type) (#rel: preorder a) (h: heap) (r: mref a rel { h `contains` r } )
-  (n: nat)
+  (n: addr)
 : Lemma
   (requires (n `addr_unused_in` (free h r) /\ n <> addr_of r))
   (ensures (n `addr_unused_in` h))
@@ -262,7 +264,7 @@ val lemma_upd_equals_upd_tot_for_contained_refs
          (ensures  (upd_tot h r x == upd h r x))
 
 val lemma_modifies_and_equal_dom_sel_diff_addr
-  (#a:Type0)(#rel:preorder a) (s:set nat) (h0:heap) (h1:heap) (r:mref a rel)
+  (#a:Type0)(#rel:preorder a) (s:set addr) (h0:heap) (h1:heap) (r:mref a rel)
   :Lemma (requires (modifies s h0 h1 /\ equal_dom h0 h1 /\ (~ (S.mem (addr_of r) s))))
          (ensures  (sel h0 r == sel h1 r))
          [SMTPat (modifies s h0 h1); SMTPat (equal_dom h0 h1); SMTPat (sel h1 r)]
