@@ -30,10 +30,12 @@ val compare_addrs:
 val contains: #a:Type0 -> #rel:preorder a -> heap -> mref a rel -> Type0
 
 val addr_unused_in: nat -> heap -> Type0
+val addr_freed_in  : nat -> heap -> Type0
 
 //val not_addr_unused_in_nullptr (h: heap) : Lemma (~ (addr_unused_in 0 h))
 
 val unused_in: #a:Type0 -> #rel:preorder a -> mref a rel -> heap -> Type0
+val freed_in: #a:Type0 -> #rel:preorder a -> mref a rel -> heap -> Type0
 
 let fresh (#a:Type) (#rel:preorder a) (r:mref a rel) (h0:heap) (h1:heap) =
   r `unused_in` h0 /\ h1 `contains` r
@@ -82,23 +84,28 @@ let equal_dom (h1:heap) (h2:heap) :GTot Type0 =
 val lemma_ref_unused_iff_addr_unused (#a:Type0) (#rel:preorder a) (h:heap) (r:mref a rel)
   :Lemma (requires True)
          (ensures  (r `unused_in` h <==> addr_of r `addr_unused_in` h))
-	 [SMTPatOr [[SMTPat (r `unused_in` h)]; [SMTPat (addr_of r `addr_unused_in` h)]]]
+         [SMTPatOr [[SMTPat (r `unused_in` h)]; [SMTPat (addr_of r `addr_unused_in` h)]]]
+
+val lemma_ref_freed_iff_addr_freed (#a:Type0) (#rel:preorder a) (h:heap) (r:mref a rel)
+  :Lemma (requires True)
+         (ensures  (r `freed_in` h <==> addr_of r `addr_freed_in` h))
+         [SMTPatOr [[SMTPat (r `freed_in` h)]; [SMTPat (addr_of r `addr_freed_in` h)]]]
 
 val lemma_contains_implies_used (#a:Type0) (#rel:preorder a) (h:heap) (r:mref a rel)
   :Lemma (requires (h `contains` r))
          (ensures  (~ (r `unused_in` h)))
-	 [SMTPatOr [[SMTPat (h `contains` r)]; [SMTPat (r `unused_in` h)]]]
+         [SMTPatOr [[SMTPat (h `contains` r)]; [SMTPat (r `unused_in` h)]]]
 
 val lemma_distinct_addrs_distinct_types
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (r2:mref b rel2)
   :Lemma (requires (a =!= b /\ h `contains` r1 /\ h `contains` r2))
          (ensures  (addr_of r1 <> addr_of r2))
-	 [SMTPat (h `contains` r1); SMTPat (h `contains` r2)]
+         [SMTPat (h `contains` r1); SMTPat (h `contains` r2)]
 
 val lemma_distinct_addrs_distinct_preorders (u:unit)
   :Lemma (forall (a:Type0) (rel1 rel2:preorder a) (r1:mref a rel1) (r2:mref a rel2) (h:heap).
             {:pattern (h `contains` r1); (h `contains` r2)}
-	    (h `contains` r1 /\ h `contains` r2 /\ rel1 =!= rel2) ==> addr_of r1 <> addr_of r2)
+            (h `contains` r1 /\ h `contains` r2 /\ rel1 =!= rel2) ==> addr_of r1 <> addr_of r2)
 
 (*
  * AR: this is a bit surprising. i had to add ~ (r1 === r2) postcondition to make the lemma
@@ -115,32 +122,38 @@ val lemma_alloc (#a:Type0) (rel:preorder a) (h0:heap) (x:a)
   :Lemma (requires True)
          (ensures  (let r, h1 = alloc rel h0 x in
                     fresh r h0 h1 /\ h1 == upd h0 r x))
-	 [SMTPat (alloc rel h0 x)]
+         [SMTPat (alloc rel h0 x)]
 
 val lemma_free_sel
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h0:heap)
   (r1:mref a rel1{h0 `contains` r1}) (r2:mref b rel2)
   :Lemma (requires True)
          (ensures  (addr_of r2 <> addr_of r1 ==> sel h0 r2 == sel (free h0 r1) r2))
-	 [SMTPat (sel (free h0 r1) r2)]
+         [SMTPat (sel (free h0 r1) r2)]
 
 val lemma_free_contains
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h0:heap)
   (r1:mref a rel1{h0 `contains` r1}) (r2:mref b rel2)
   :Lemma (requires True)
          (ensures  (let h1 = free h0 r1 in
-	            (addr_of r2 <> addr_of r1 /\ h0 `contains` r2) <==> h1 `contains` r2))
-	 [SMTPat ((free h0 r1) `contains` r2)]
+                    (addr_of r2 <> addr_of r1 /\ h0 `contains` r2) <==> h1 `contains` r2))
+         [SMTPat ((free h0 r1) `contains` r2)]
 
 val lemma_free_unused
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h0:heap)
   (r1:mref a rel1{h0 `contains` r1}) (r2:mref b rel2)
   :Lemma (requires True)
          (ensures  (let h1 = free h0 r1 in
-	            ((addr_of r1 = addr_of r2 ==> r2 `unused_in` h1)      /\
-		     (r2 `unused_in` h0       ==> r2 `unused_in` h1)      /\
-		     (r2 `unused_in` h1       ==> (r2 `unused_in` h0 \/ addr_of r2 = addr_of r1)))))
-	 [SMTPat (r2 `unused_in` (free h0 r1))]
+                    ((addr_of r1 = addr_of r2 ==> r2 `freed_in` h1)      /\
+                     (r2 `unused_in` h0      <==> r2 `unused_in` h1)      /\
+                     (r2 `freed_in` h0        ==> r2 `freed_in` h1))))
+         [SMTPat (r2 `unused_in` (free h0 r1))]
+
+val lemma_free_not_contained
+  (#a:Type0) (#rel:preorder a) (h:heap) (r:mref a rel)
+  :Lemma (requires (r `freed_in` h))
+         (ensures (~(h `contains` r)))
+         [SMTPat (r `freed_in` h)]
 
 val lemma_free_addr_unused_in
   (#a: Type) (#rel: preorder a) (h: heap) (r: mref a rel { h `contains` r } )
@@ -157,7 +170,7 @@ val lemma_sel_same_addr (#a:Type0) (#rel:preorder a) (h:heap) (r1:mref a rel) (r
   :Lemma (requires (h `contains` r1 /\ addr_of r1 = addr_of r2))
          (ensures  (h `contains` r2 /\ sel h r1 == sel h r2))
          [SMTPatOr [
-	   [SMTPat (sel h r1); SMTPat (sel h r2)];
+           [SMTPat (sel h r1); SMTPat (sel h r2)];
            [SMTPat (h `contains` r1); SMTPat (h `contains` r2)];
          ]]
 
@@ -172,7 +185,7 @@ val lemma_sel_upd1 (#a:Type0) (#rel:preorder a) (h:heap) (r1:mref a rel) (x:a) (
 val lemma_sel_upd2 (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (r2:mref b rel2) (x:b)
   :Lemma (requires (addr_of r1 <> addr_of r2))
          (ensures  (sel (upd h r2 x) r1 == sel h r1))
-	 [SMTPat (sel (upd h r2 x) r1)]
+         [SMTPat (sel (upd h r2 x) r1)]
 
 val lemma_mref_injectivity
   :(u:unit{forall (a:Type0) (b:Type0) (rel1:preorder a) (rel2:preorder b) (r1:mref a rel1) (r2:mref b rel2). a =!= b ==> ~ (eq3 r1 r2)})
@@ -180,39 +193,53 @@ val lemma_mref_injectivity
 val lemma_in_dom_emp (#a:Type0) (#rel:preorder a) (r:mref a rel)
   :Lemma (requires True)
          (ensures  (r `unused_in` emp))
-	 [SMTPat (r `unused_in` emp)]
+         [SMTPat (r `unused_in` emp)]
 
 val lemma_upd_contains (#a:Type0) (#rel:preorder a) (h:heap) (r:mref a rel) (x:a)
   :Lemma (requires True)
          (ensures  ((upd h r x) `contains` r))
-	 [SMTPat ((upd h r x) `contains` r)]
+         [SMTPat ((upd h r x) `contains` r)]
 
 val lemma_well_typed_upd_contains
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (x:a) (r2:mref b rel2)
   :Lemma (requires (h `contains` r1))
          (ensures  (let h1 = upd h r1 x in
-	            h1 `contains` r2 <==> h `contains` r2))
-	 [SMTPat ((upd h r1 x) `contains` r2)]
+                    h1 `contains` r2 <==> h `contains` r2))
+         [SMTPat ((upd h r1 x) `contains` r2)]
 
 val lemma_unused_upd_contains
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (x:a) (r2:mref b rel2)
   :Lemma (requires (r1 `unused_in` h))
          (ensures  (let h1 = upd h r1 x in
-	            (h `contains` r2  ==> h1 `contains` r2) /\
-		    (h1 `contains` r2 ==> (h `contains` r2 \/ addr_of r2 = addr_of r1))))
-	 [SMTPat ((upd h r1 x) `contains` r2)]
+                    (h `contains` r2  ==> h1 `contains` r2) /\
+                    (h1 `contains` r2 ==> (h `contains` r2 \/ addr_of r2 = addr_of r1))))
+         [SMTPat ((upd h r1 x) `contains` r2)]
+
+val lemma_unused_upd_freed_in
+  (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (x:a) (r2:mref b rel2)
+  :Lemma (requires (r1 `unused_in` h))
+         (ensures  (let h1 = upd h r1 x in
+                    (r2 `freed_in` h  ==> r2 `freed_in` h1) /\
+                    (r2 `freed_in` h1 ==> (r2 `freed_in` h \/ addr_of r2 = addr_of r1))))
+         [SMTPat (r2 `freed_in` (upd h r1 x))]
 
 val lemma_upd_contains_different_addr
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (x:a) (r2:mref b rel2)
   :Lemma (requires (h `contains` r2 /\ addr_of r1 <> addr_of r2))
          (ensures  ((upd h r1 x) `contains` r2))
-	 [SMTPat ((upd h r1 x) `contains` r2)]
+         [SMTPat ((upd h r1 x) `contains` r2)]
 
 val lemma_upd_unused
   (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (x:a) (r2:mref b rel2)
   :Lemma (requires True)
          (ensures  ((addr_of r1 <> addr_of r2 /\ r2 `unused_in` h) <==> r2 `unused_in` (upd h r1 x)))
-	 [SMTPat (r2 `unused_in` (upd h r1 x))]
+         [SMTPat (r2 `unused_in` (upd h r1 x))]
+
+val lemma_upd_freed
+  (#a:Type0) (#b:Type0) (#rel1:preorder a) (#rel2:preorder b) (h:heap) (r1:mref a rel1) (x:a) (r2:mref b rel2)
+  :Lemma (requires True)
+         (ensures  ((addr_of r1 <> addr_of r2 /\ r2 `freed_in` h) <==> r2 `freed_in` (upd h r1 x)))
+         [SMTPat (r2 `freed_in` (upd h r1 x))]
 
 val lemma_contains_upd_modifies (#a:Type0) (#rel:preorder a) (h:heap) (r:mref a rel) (x:a)
   :Lemma (requires (h `contains` r))
@@ -238,7 +265,7 @@ val lemma_modifies_and_equal_dom_sel_diff_addr
   (#a:Type0)(#rel:preorder a) (s:set nat) (h0:heap) (h1:heap) (r:mref a rel)
   :Lemma (requires (modifies s h0 h1 /\ equal_dom h0 h1 /\ (~ (S.mem (addr_of r) s))))
          (ensures  (sel h0 r == sel h1 r))
-	 [SMTPat (modifies s h0 h1); SMTPat (equal_dom h0 h1); SMTPat (sel h1 r)]
+         [SMTPat (modifies s h0 h1); SMTPat (equal_dom h0 h1); SMTPat (sel h1 r)]
 
 val lemma_heap_equality_upd_same_addr (#a: Type0) (#rel: preorder a) (h: heap) (r1 r2: mref a rel) (x: a)
   :Lemma (requires ((h `contains` r1 \/ h `contains` r2) /\ addr_of r1 = addr_of r2))

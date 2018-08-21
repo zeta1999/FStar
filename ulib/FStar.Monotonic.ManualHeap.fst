@@ -3,9 +3,14 @@ module FStar.Monotonic.ManualHeap
 open FStar.Preorder
 open FStar.Classical
 
+type st (a:Type) =
+  | Unused : st a
+  | Used   : a -> st a
+  | Freed  : st a
+
 private noeq type heap_rec = {
   next_addr: (x: nat);
-  memory   : (x: nat) -> Tot (option (a:Type0 & rel:(option (preorder a)) & a))  //type, preorder, and value
+  memory   : (x: nat) -> Tot (option (a:Type0 & rel:(option (preorder a)) & st a))
 }
 
 let heap = h:heap_rec{(forall (n:nat). n >= h.next_addr ==> None? (h.memory n))}
@@ -36,17 +41,25 @@ let compare_addrs #a #b #rel1 #rel2 r1 r2 = r1.addr = r2.addr
 let contains #a #rel h r =
   let _ = () in
   Some? (h.memory r.addr) /\
-  (let Some (| a1, pre_opt, _ |) = h.memory r.addr in
-   a == a1 /\ Some? pre_opt /\ Some?.v pre_opt == rel)
+  (let Some (| a1, pre_opt, v |) = h.memory r.addr in
+   a == a1 /\ Some? pre_opt /\ Some?.v pre_opt == rel /\ Used? v)
 
 let addr_unused_in n h = None? (h.memory n)
+
+let addr_freed_in n h =
+  match h.memory n with
+  | Some (| _, _, Freed |) -> True
+  | _ -> False
 
 let not_addr_unused_in_nullptr h = ()
 
 let unused_in #a #rel r h = addr_unused_in (addr_of r) h
 
+let freed_in #a #rel r h =
+  addr_freed_in (addr_of r) h
+
 let sel_tot #a #rel h r =
-  let Some (| _, _, x |) = h.memory r.addr in
+  let Some (| _, _, Used x |) = h.memory r.addr in
   x
 
 let sel #a #rel h r =
@@ -56,7 +69,7 @@ let sel #a #rel h r =
 
 let upd_tot' (#a: Type0) (#rel: preorder a) (h: heap) (r: mref a rel) (x: a) =
   { h with memory = (fun r' -> if r.addr = r'
-                            then Some (| a, Some rel, x |)
+                            then Some (| a, Some rel, Used x |)
                             else h.memory r') }
 
 let upd_tot #a #rel h r x = upd_tot' h r x
@@ -69,22 +82,22 @@ let upd #a #rel h r x =
     then
       { next_addr = r.addr + 1;
         memory    = (fun r' -> if r' = r.addr
-                                 then Some (| a, Some rel, x |)
+                                 then Some (| a, Some rel, Used x |)
                                  else h.memory r') }
     else
       { h with memory = (fun r' -> if r' = r.addr
-                                then Some (| a, Some rel, x |)
+                                then Some (| a, Some rel, Used x |)
                                 else h.memory r') }
 
 let alloc #a rel h x =
   let r = { addr = h.next_addr; init = x } in
   r, { next_addr = r.addr + 1;
        memory    = (fun r' -> if r' = r.addr
-                                then Some (| a, Some rel, x |)
+                                then Some (| a, Some rel, Used x |)
                                 else h.memory r') }
 
 let free #a #rel h r =
-  { h with memory = (fun r' -> if r' = r.addr then None else h.memory r') }
+  { h with memory = (fun r' -> if r' = r.addr then Some (| a, Some rel, Freed |) else h.memory r') }
 
 (*
  * update of a well-typed mreference
@@ -145,7 +158,7 @@ private let lemma_alloc_test (#a:Type) (rel:preorder a) (h0:heap) (x:a)
 
 private let lemma_free_mm_test (#a:Type) (rel:preorder a) (h0:heap) (r:mref a rel{h0 `contains` r})
   :Lemma (let h1 = free h0 r in
-          r `unused_in` h1 /\
+          r `freed_in` h1 /\
           (forall (b:Type) (rel:preorder b) (r':mref b rel). addr_of r' <> addr_of r ==>
                                   ((sel h0 r' == sel h1 r'                 /\
                                    (h0 `contains` r' <==> h1 `contains` r') /\
@@ -158,6 +171,7 @@ private let lemma_alloc_fresh_test (#a:Type) (rel:preorder a) (h0:heap) (x:a)
   = ()
 
 let lemma_ref_unused_iff_addr_unused #a #rel h r = ()
+let lemma_ref_freed_iff_addr_freed #a #rel h r = ()
 let lemma_contains_implies_used #a #rel h r = ()
 let lemma_distinct_addrs_distinct_types #a #b #rel1 #rel2 h r1 r2 = ()
 let lemma_distinct_addrs_distinct_preorders u = ()
@@ -169,6 +183,7 @@ let lemma_alloc #a rel h0 x =
 let lemma_free_sel #a #b #rel1 #rel2 h0 r1 r2 = ()
 let lemma_free_contains #a #b #rel1 #rel2 h0 r1 r2 = ()
 let lemma_free_unused #a #b #rel1 #rel2 h0 r1 r2 = ()
+let lemma_free_not_contained #a #rel h r = ()
 let lemma_free_addr_unused_in #a #rel h r n = ()
 let lemma_sel_same_addr #a #rel h r1 r2 = ()
 let lemma_sel_upd1 #a #rel h r1 x r2 = ()
@@ -178,8 +193,10 @@ let lemma_in_dom_emp #a #rel r = ()
 let lemma_upd_contains #a #rel h r x = ()
 let lemma_well_typed_upd_contains #a #b #rel1 #rel2 h r1 x r2 = ()
 let lemma_unused_upd_contains #a #b #rel1 #rel2 h r1 x r2 = ()
+let lemma_unused_upd_freed_in #a #b #rel1 #rel2 h r1 x r2 = ()
 let lemma_upd_contains_different_addr #a #b #rel1 #rel2 h r1 x r2 = ()
 let lemma_upd_unused #a #b #rel1 #rel2 h r1 x r2 = ()
+let lemma_upd_freed  #a #b #rel1 #rel2 h r1 x r2 = ()
 let lemma_contains_upd_modifies #a #rel h r x = ()
 let lemma_unused_upd_modifies #a #rel h r x = ()
 
