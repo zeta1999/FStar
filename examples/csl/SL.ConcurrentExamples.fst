@@ -65,7 +65,7 @@ let test_acq (r:ref int) (l:lock r) : ST int (fun p m -> m == emp /\ (forall v. 
 let test_acq_rel (r:ref int) (l:lock r) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ())
   =
   acquire l;
-  //let v = !r in
+  let v = !r in
   release l
 
 let set_and_ret (r:ref int) (l : lock r) (n : nat) () : ST int (fun p m -> m == emp /\ p n emp) [] by (sl_auto ()) =
@@ -79,3 +79,22 @@ let test06 (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 emp) []
   let l = mklock r in
   let (x, y) = par (set_and_ret r l 1) (set_and_ret r l 2) in
   x + y
+
+let test07 () : ST int (fun p m -> m == emp /\ (forall r. p 3 (r |> 5))) [] by (sl_auto ()) =
+  let r = alloc 5 in
+  3
+  
+
+let test08 (r : ref int) : ST int (fun p m -> exists v. m == (r |> v) /\ (forall r'. p v (r |> v <*> r' |> v))) [tosref r] by (sl_auto ()) =
+  let v = !r in
+  let r' = alloc v in
+  v
+  
+let test09 (r : ref int) : ST int (fun p m -> exists v. m == (r |> v) /\ (forall r'. p v (r' |> v <*> r |> v))) [tosref r] by (sl_auto ()) =
+  let v = !r in
+  let r' = alloc v in
+  v
+
+let test10 () : ST int (fun p m -> m == emp /\ (forall i m. p i m)) [] by (sl_auto ()) =
+  let r = alloc 3 in
+  test08 r
