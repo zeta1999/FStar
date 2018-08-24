@@ -40,29 +40,25 @@ assume val par : (#a:Type) -> (#b:Type) ->
 // Locks are over a particular reference r.
 // Can we use a list or a set? Non-trivial to make it work. Even a set of addresses causes many blowups.
 // Can we use a heap predicate? Can we automate frame inference then?
-assume new type lock : #a:Type -> ref a -> Type0
+assume new type lock : #a:Type -> ref a -> (memory -> prop) -> Type0
 
-let mklock_wp #a (r:ref a) post m = exists v. m == r |> v /\ (forall (l:lock r). post l emp)
-let frame_mklock_wp r post m0 = frame_wp (with_fp [tosref r] <| mklock_wp r) (frame_post post) m0
-assume val mklock : #a:Type -> (r: ref a) ->
-                    STATE (lock r) (frame_mklock_wp r)
+let mklock_wp #a (r:ref a) inv post m = exists v. m == r |> v /\ (inv m /\ (forall (l:lock r inv). post l emp))
+let frame_mklock_wp r inv post m0 = frame_wp (with_fp [tosref r] <| mklock_wp r inv) (frame_post post) m0
 
-  //let l = mklock r in
-  //acquire l;
-  //par (fun () -> acquire l; r := 2; release l)
-  //    (fun () -> r := !r + 1; release l)
+assume val mklock : #a:Type -> #inv:(memory -> prop) -> (r: ref a) ->
+                    STATE (lock r inv) (frame_mklock_wp r inv)
 
 
-let acquire_wp r l post m = m == emp /\ (forall v. post () (r |> v))
-let frame_acquire_wp r l post m0 = frame_wp (with_fp [] <| acquire_wp r l) (frame_post post) m0
-assume val acquire : #a:Type -> (#r: ref a) -> (l : lock r) ->
-                     STATE unit (frame_acquire_wp r l)
+let acquire_wp r inv l post m = m == emp /\ (forall v. inv (r |> v) ==> post () (r |> v))
+let frame_acquire_wp r inv l post m0 = frame_wp (with_fp [] <| acquire_wp r inv l) (frame_post post) m0
+assume val acquire : #a:Type -> (#r: ref a) -> (#inv : (memory -> prop)) -> (l : lock r inv) ->
+                     STATE unit (frame_acquire_wp r inv l)
 
 
-let release_wp r l post m = (exists v. m == r |> v) /\ post () emp
-let frame_release_wp r l post m0 = frame_wp (with_fp [tosref r] <| release_wp r l) (frame_post post) m0
-assume val release : #a:Type -> (#r: ref a) -> (l : lock r) ->
-                     STATE unit (frame_release_wp r l)
+let release_wp r inv l post m = (exists v. m == r |> v /\ inv m) /\ post () emp
+let frame_release_wp r inv l post m0 = frame_wp (with_fp [tosref r] <| release_wp r inv l) (frame_post post) m0
+assume val release : #a:Type -> (#r: ref a) -> (#inv : (memory -> prop)) -> (l : lock r inv) ->
+                     STATE unit (frame_release_wp r inv l)
 
 
 // let locking_wp r l wp post m =

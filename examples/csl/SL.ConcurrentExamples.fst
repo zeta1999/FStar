@@ -3,9 +3,6 @@ module SL.ConcurrentExamples
 open SL.Base
 open SL.AutoTactic
 
-// Lift from PURE to STATE, needed since we use $ for some args, which is annoying...
-let l (x:'a) : ST 'a (fun p m -> m == emp /\ p x m) [] = x
-
 let left  r () : ST int (fun p m -> exists v. m == r |> v /\ p 1 (r |> v)) [tosref r] by (sl_auto ()) = 1
 let right r () : ST int (fun p m -> exists v. m == r |> v /\ p 2 (r |> v)) [tosref r] by (sl_auto ()) = 2
 
@@ -51,24 +48,25 @@ let par_set (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 (r |> 
 (* This is explicit about the frames of the parallel composition, but still requires
  * non-trivial frame reasoning *)
 (* Does not work now, we haven't implemented par_exp in the tactic (do we want to? probably not *)
+//let l (x:'a) : ST 'a (fun p m -> m == emp /\ p x m) [] = x
 //let test03' (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 (r |> v)) [] by (sl_auto ())
 //=
 //  let (x, y) = par_exp emp emp (fun () -> l 1) (fun () -> l 2) in
 //  x + y
 
 
-let test_acq (r:ref int) (l:lock r) : ST int (fun p m -> m == emp /\ (forall v. p 3 (r |> v))) [tosref r] by (sl_auto ())
+let test_acq (r:ref int) (l:lock r (fun _ -> True)) : ST int (fun p m -> m == emp /\ (forall v. p 3 (r |> v))) [tosref r] by (sl_auto ())
   =
   acquire l;
   3
 
-let test_acq_rel (r:ref int) (l:lock r) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ())
+let test_acq_rel (r:ref int) (l:lock r (fun _ -> True)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ())
   =
   acquire l;
   let v = !r in
   release l
 
-let set_and_ret (r:ref int) (l : lock r) (n : nat) () : ST int (fun p m -> m == emp /\ p n emp) [] by (sl_auto ()) =
+let set_and_ret (r:ref int) (l : lock r (fun _ -> True)) (n : nat) () : ST int (fun p m -> m == emp /\ p n emp) [] by (sl_auto ()) =
   acquire l;
   r := n;
   release l;
@@ -76,7 +74,7 @@ let set_and_ret (r:ref int) (l : lock r) (n : nat) () : ST int (fun p m -> m == 
 
 (* Note: final heap is empty, it is the lock that owns `r` *)
 let test06 (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 emp) [] by (sl_auto ()) =
-  let l = mklock r in
+  let l = mklock #_ #(fun _ -> True) r  in
   let (x, y) = par (set_and_ret r l 1) (set_and_ret r l 2) in
   x + y
 
@@ -102,4 +100,69 @@ let test10 () : ST int (fun p m -> m == emp /\ (forall i m. p i m)) [] by (sl_au
 let test11 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 3 in
   r := 22;
+  free r
+
+let non_neg_inv (r:ref int) : memory -> prop =
+  fun m -> exists v. v >= 0 /\ m == r |> v
+
+let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
+			      (ensures (v1 == v2))
+			      [SMTPat (r |> v1); SMTPat (r |> v2)]
+			      =
+ admit ()
+
+open FStar.Tactics
+  
+
+let sklem0 (#a:Type) (#p : a -> Type0) ($v : (exists (x:a). p x)) (phi:Type0) :
+  Lemma (requires (forall x. p x ==> phi))
+        (ensures phi) = ()
+
+let sk_binder (b:binder) =
+  focus (fun () ->
+    dump ("trying : " ^ term_to_string (quote b));
+    let _ =
+    trytac (fun () ->
+      apply_lemma (`(sklem0 (`#(binder_to_term b))));
+      if ngoals () <> 1 then fail "no";
+      dump "got one";
+      let _ = forall_intro () in
+      let _ = implies_intro () in
+      ()
+    ) in ()
+  )
+
+let skolem () =
+  let bs = binders_of_env (cur_env ()) in
+  iter sk_binder bs
+
+let rest () = assume_safe (fun () ->
+  dump "0";
+  let g1::g2::_ = smt_goals () in
+  set_smt_goals [g1];
+  set_goals [g2];
+  eexists _ (fun () -> split (); trefl ());
+  eexists _ (fun () -> split (); flip (); trefl ());
+  dump "1";
+  skolem ();
+  dump "2";
+  ()
+  )
+	
+let take_and_incr (r:ref int) (l : lock r (non_neg_inv r)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto (); rest ()) =
+  acquire l;
+  r := !r + 1;
+  release l
+
+
+//#set-options "--debug SL.ConcurrentExamples --debug_level Tac"
+//#set-options "--print_full_names --prn"
+
+let test12 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+  let r = alloc 0 in
+  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
+  //acquire l;
+  //let v = !r in
+  //assert (v >= 0);
   free r

@@ -70,6 +70,8 @@ let tosref #a (r : ref a) : sref = Mkdtuple2 a r
 
 let with_fp (fp : refs) (x:'a) : 'a = x
 
+let by_smt (x:'a) : 'a = x
+
 let with_fp_lemma fp x : Lemma (with_fp fp x == x) [SMTPat (with_fp fp x)] = ()
 
 effect ST (a:Type) (wp:st_wp a) (fp:refs) = STATE a (fun post m -> frame_wp (with_fp fp wp) (frame_post post) m)
