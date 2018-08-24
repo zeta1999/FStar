@@ -98,3 +98,8 @@ let test09 (r : ref int) : ST int (fun p m -> exists v. m == (r |> v) /\ (forall
 let test10 () : ST int (fun p m -> m == emp /\ (forall i m. p i m)) [] by (sl_auto ()) =
   let r = alloc 3 in
   test08 r
+
+let test11 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+  let r = alloc 3 in
+  r := 22;
+  free r

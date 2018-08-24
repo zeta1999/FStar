@@ -17,6 +17,7 @@ assume
 val ( ! ) (#a:Type) (r:ref a)
   :STATE a (frame_read_wp r)
 
+
 let write_wp (#a:Type) (r:ref a) (v:a) : st_wp unit =
   (fun post m0 -> exists (x:a). m0 == (r |> x) /\ post () (r |> v))
 
@@ -39,3 +40,15 @@ let frame_alloc_wp (#a:Type) (v:a) : st_wp (ref a) =
 assume
 val alloc (#a:Type) (v:a)
   :STATE (ref a) (frame_alloc_wp v)
+
+
+let free_wp (#a:Type) (r:ref a) : st_wp unit =
+  (fun post m0 -> exists (x:a). m0 == (r |> x) /\ post () emp)
+
+unfold
+let frame_free_wp (#a:Type) (r:ref a) : st_wp unit =
+   fun post m0 -> frame_wp (with_fp [tosref r] <| free_wp r) (frame_post post) m0
+
+assume
+val free (#a:Type) (r:ref a)
+  :STATE unit (frame_free_wp r)
