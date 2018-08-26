@@ -16,6 +16,8 @@ module SLHeap = SL.Heap
 
 // --using_facts_from '* -FStar.Tactics -FStar.Reflection'
 
+let ddump m = if T.debugging () then T.dump m
+
 let memory_cm : cm memory =
   CM emp (<*>) (fun x -> lemma_sep_unit' x) (fun x y z -> ()) (fun x y -> ())
 
@@ -111,7 +113,7 @@ let assume_p_lemma (#a:Type) (#p:Type) (#wp:st_wp a) (#post:post a) (#m:memory)
 
 let pointsto_to_string (fp_refs:list term) (t:term) : Tac string =
   let hd, tl = collect_app t in
-  dump (term_to_string hd);
+  ddump (term_to_string hd);
   match inspect hd, tl with
   | Tv_FVar fv, [(ta, Q_Implicit); (tr, Q_Explicit); (tv, Q_Explicit)] ->
     if fv_is fv (`%(op_Bar_Greater)) then
@@ -229,7 +231,7 @@ let elim_fp () : Tac unit = apply_lemma (`__elim_fp)
 //return t_refl if we did some something, so that the caller can make progress on rest of the VC
 let rec solve_procedure_ref_value_existentials (use_trefl:bool) :Tac bool =
   let g = cur_goal () in
-  dump "solve_procudure_ref_value_existentials";
+  ddump "solve_procudure_ref_value_existentials";
   match term_as_formula g with
   | Exists x t ->
     let w = uvar_env (cur_env ()) (Some (inspect_bv x).bv_sort) in
@@ -267,16 +269,16 @@ let find_frame (refs : list term) (small : term) (big : term) : Tac (term * bind
     let eq = `((`#small <*> `#frame) == `#big) in
 
     //cut
-    dump "GG 0";
+    ddump "GG 0";
     apply_lemma (mk_e_app (`__tcut) [eq]);
-    dump "GG 1 with new goal:";
+    ddump "GG 1 with new goal:";
 
     //flip so that the current goal is the equality of memory expressions
     flip ();
     
-    dump ("before canon_monoid");
+    ddump ("before canon_monoid");
     canon_monoid_sl refs;
-    dump ("after canon_monoid");
+    ddump ("after canon_monoid");
     begin match trytac trefl with
     | Some _ -> ()
     | None ->
@@ -288,14 +290,14 @@ let find_frame (refs : list term) (small : term) (big : term) : Tac (term * bind
         then (apply_lemma (`__unif_helper); trefl ())
         else fail "trefl failed and unifying to `emp` too"
     end;
-    dump ("after trefl");
+    ddump ("after trefl");
 
     //this is the a ==> b thing when we did cut above
     let heap_eq = implies_intro () in
     (frame, heap_eq)
 
 let rec sl (i:int) : Tac unit =
-  dump ("SL :" ^ string_of_int i);
+  ddump ("SL :" ^ string_of_int i);
 
   unfold_def (`(<|));
 
@@ -303,7 +305,7 @@ let rec sl (i:int) : Tac unit =
   //this will solve it in the tactic itself rather than farming it out to smt
   norm [simplify];
   let c = peek_cmd () in
-  dump ("c = " ^ term_to_string (quote c));
+  ddump ("c = " ^ term_to_string (quote c));
   match c with
   | Unknown None ->
     //either we are done
@@ -396,11 +398,11 @@ let rec sl (i:int) : Tac unit =
 
     //compute the footprint from the arg (e.g. read_wp r1, swap_wp r1 r2, etc.)
     let fp_refs = footprint_of twp in
-    dump ("fp_refs="^ FStar.String.concat "," (List.Tot.map term_to_string fp_refs));
+    ddump ("fp_refs="^ FStar.String.concat "," (List.Tot.map term_to_string fp_refs));
 
     //build the footprint memory expression, uvars for ref values, and join then
     let fp = ref_terms_to_heap_term fp_refs in
-    dump ("m0=" ^ term_to_string fp);
+    ddump ("m0=" ^ term_to_string fp);
 
     let (frame, heap_eq) = find_frame fp_refs fp tm in
 
@@ -408,13 +410,13 @@ let rec sl (i:int) : Tac unit =
     let fp = norm_term [] fp in  //if we don't do these norms, fast implicits don't kick in because of lambdas
     let frame = norm_term [] frame in
     apply_lemma (mk_e_app (`frame_wp_lemma) [tm; fp; frame]);
-    dump ("after frame lemma - 1");
+    ddump ("after frame lemma - 1");
 
     //equality goal from frame_wp_lemma
     mapply (binder_to_term heap_eq);
 
     //T.split(); smt(); //definedness
-    dump ("after frame lemma - 2");
+    ddump ("after frame lemma - 2");
     sl(i + 1)
 
   | ParWP wpa wpb th0 ->
@@ -431,21 +433,21 @@ let rec sl (i:int) : Tac unit =
 
     let (frame, eq_hyp) = find_frame fp h th0 in
 
-    dump "GG 0";
+    ddump "GG 0";
 
     witness (`(`#h_a <*> `#frame));
-    dump "GG 0.1";
+    ddump "GG 0.1";
     witness h_b;
-    dump "GG 0.2";
+    ddump "GG 0.2";
 
     apply_lemma (`(par_wp'_lemma));
-    dump "GG 1";
+    ddump "GG 1";
 
     canon_monoid_sl fp;
-    dump "GG 3";
+    ddump "GG 3";
     trefl ();
 
-    dump "GG 4";
+    ddump "GG 4";
     sl (i + 1)
 
 let __elim_exists_as_forall
@@ -460,7 +462,7 @@ let __elim_exists (h:binder) :Tac unit
 
 let prelude' () : Tac unit =
   //take care of some auto_squash stuff
-  dump "start";
+  ddump "start";
   norm [delta_only [`%st_stronger; "Prims.auto_squash"]];
   mapply (`FStar.Squash.return_squash);
 
@@ -497,15 +499,15 @@ let prelude' () : Tac unit =
 
   //this is the m = ..., introduced by the frame_wp
   let m0 = implies_intro () in
-  dump "before rewrite";
+  ddump "before rewrite";
   rewrite m0; clear m0;
-  dump "after rewrite";
+  ddump "after rewrite";
 
-  dump "Before elim ref values";
+  ddump "Before elim ref values";
   ignore (repeat (fun () -> let h = implies_intro () in
                            __elim_exists h;
 			   ignore (forall_intro ())));
-  dump "After elim ref values";
+  ddump "After elim ref values";
   
   //now we are at the small footprint style wp
   //we should full norm it, so that we can get our hands on the m0 == ..., i.e. the footprint of the command
@@ -522,5 +524,5 @@ let prelude' () : Tac unit =
 
 let sl_auto () : Tac unit =
    prelude'();
-   dump "after prelude";
+   ddump "after prelude";
    sl(0)
