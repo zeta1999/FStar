@@ -3,8 +3,6 @@ module SL.ConcurrentExamples
 open SL.Base
 open SL.AutoTactic
 
-#push-options "--lax"
-
 let left  r () : ST int (fun p m -> exists v. m == r |> v /\ p 1 (r |> v)) [tosref r] by (sl_auto ()) = 1
 let right r () : ST int (fun p m -> exists v. m == r |> v /\ p 2 (r |> v)) [tosref r] by (sl_auto ()) = 2
 
@@ -105,14 +103,14 @@ let test11 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   free r
 
 let non_neg_inv (r:ref int) : memory -> Type0 =
-  fun m -> exists v. m == r |> v /\ v >= 0
-  //fun m -> exists v. v >= 0 /\ m == r |> v
+  //fun m -> exists v. m == r |> v /\ v >= 0
+  fun m -> exists v. v >= 0 /\ m == r |> v
 
 let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
 			      (ensures (v1 == v2))
 			      [SMTPat (r |> v1); SMTPat (r |> v2)]
 			      =
- admit ()
+ admit () // should be easily proveable from inside SL.Heap
 
 open FStar.Tactics
 
@@ -144,13 +142,29 @@ let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   //assert (v >= 0);
   free r
 
-#pop-options
-
 let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
   let r = alloc 0 in
   let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
-  acquire #_ #_ #(fun m -> by_smt (non_neg_inv r m)) l;
+  acquire l;
   //let v = !r in
   //assert (v >= 0);
+  free r
+
+let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
+  let r = alloc 0 in
+  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
+  acquire l;
+  let v = !r in
+  //assert (v >= 0);
+  free r
+
+let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
+  let r = alloc 0 in
+  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
+  acquire l;
+  let v = !r in
+  assert (v >= 0);
   free r

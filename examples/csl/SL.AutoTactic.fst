@@ -317,7 +317,7 @@ let rec sl (i:int) : Tac unit =
     //or we are stuck at some existential in procedure calls
     let cont = solve_procedure_ref_value_existentials false in
     if cont then sl (i + 1)
-    else (label "Unknown None,"; smt ())
+    else (tlabel "Unknown None,"; smt ())
 
   | Unknown (Some fv) ->
     //so here we are unfolding something like swap_wp below
@@ -325,12 +325,12 @@ let rec sl (i:int) : Tac unit =
     // eventually this will use attributes,
     // but we can't currently get at them
     unfold_first_occurrence (fv_to_string fv);
-    ignore (repeat (fun () -> T.split(); label ("Unknown (Some " ^ fv_to_string fv ^ "),"); smt())); //definedness
+    ignore (repeat (fun () -> T.split(); tlabel ("Unknown (Some " ^ fv_to_string fv ^ "),"); smt())); //definedness
     norm [];
     sl (i + 1)
 
   | BySMT ->
-    label "explicit by_smt,";
+    tlabel "explicit by_smt,";
     smt ()
 
   | Bind ->
@@ -390,7 +390,7 @@ let rec sl (i:int) : Tac unit =
   | And ->
     T.split ();
     let k s () =
-      label s;
+      tlabel s;
       sl (i + 1)
     in
     iseq [k "left,"; k "right,"]
