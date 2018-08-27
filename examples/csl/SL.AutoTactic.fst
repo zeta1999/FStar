@@ -292,7 +292,7 @@ let find_frame (refs : list term) (small : term) (big : term) : Tac (term * bind
         let b = unify frame (`emp) in
         if b
         then (apply_lemma (`__unif_helper); trefl ())
-        else fail "trefl failed and unifying to `emp` too"
+        else fail "impossible? setting the frame uvar to emp failed"
     end;
     ddump ("after trefl");
 
@@ -316,7 +316,7 @@ let rec sl (i:int) : Tac unit =
     //or we are stuck at some existential in procedure calls
     let cont = solve_procedure_ref_value_existentials false in
     if cont then sl (i + 1)
-    else (label "Unknown None"; smt ())
+    else (label "Unknown None,"; smt ())
 
   | Unknown (Some fv) ->
     //so here we are unfolding something like swap_wp below
@@ -324,12 +324,12 @@ let rec sl (i:int) : Tac unit =
     // eventually this will use attributes,
     // but we can't currently get at them
     unfold_first_occurrence (fv_to_string fv);
-    ignore (repeat (fun () -> T.split(); label ("Unknown (Some " ^ fv_to_string fv ^ ")"); smt())); //definedness
+    ignore (repeat (fun () -> T.split(); label ("Unknown (Some " ^ fv_to_string fv ^ "),"); smt())); //definedness
     norm [];
     sl (i + 1)
 
   | BySMT ->
-    label "explicit by_smt";
+    label "explicit by_smt,";
     smt ()
 
   | Bind ->
@@ -388,8 +388,11 @@ let rec sl (i:int) : Tac unit =
 
   | And ->
     T.split ();
-    let k () = sl (i + 1) in
-    iseq [k; k]
+    let k s () =
+      label s;
+      sl (i + 1)
+    in
+    iseq [k "left,"; k "right,"]
 
   | Eq ->
     trefl `or_else` smt
@@ -461,6 +464,8 @@ let rec sl (i:int) : Tac unit =
 
     ddump "GG 4";
     sl (i + 1)
+
+  | _ -> fail "impossible.. coverage"
 
 let __elim_exists_as_forall
   (#a:Type) (#p:a -> Type) (#phi:Type) (_:(exists x. p x)) (_:squash (forall (x:a). p x ==> phi))
