@@ -70,7 +70,7 @@ let tosref #a (r : ref a) : sref = Mkdtuple2 a r
 
 let with_fp (fp : refs) (x:'a) : 'a = x
 
-let by_smt (x:'a) : 'a = x
+let by_smt (x:Type0) : Type0 = x
 
 let with_fp_lemma fp x : Lemma (with_fp fp x == x) [SMTPat (with_fp fp x)] = ()
 

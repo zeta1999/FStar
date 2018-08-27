@@ -541,7 +541,6 @@ let prelude' () : Tac unit =
   ignore (implies_intro ())
 
 let sl_auto () : Tac unit =
-   T.set_guard_policy T.Force;
    prelude'();
    ddump "after prelude";
    sl(0);

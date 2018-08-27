@@ -40,24 +40,24 @@ assume val par : (#a:Type) -> (#b:Type) ->
 // Locks are over a particular reference r.
 // Can we use a list or a set? Non-trivial to make it work. Even a set of addresses causes many blowups.
 // Can we use a heap predicate? Can we automate frame inference then?
-assume new type lock : #a:Type -> ref a -> (memory -> prop) -> Type0
+assume new type lock : #a:Type -> ref a -> (memory -> Type0) -> Type0
 
 let mklock_wp #a (r:ref a) inv post m = exists v. m == r |> v /\ (m == r|> v ==> (inv m /\ (forall (l:lock r inv). post l emp)))
 let frame_mklock_wp r inv post m0 = frame_wp (with_fp [tosref r] <| mklock_wp r inv) (frame_post post) m0
 
-assume val mklock : #a:Type -> #inv:(memory -> prop) -> (r: ref a) ->
+assume val mklock : #a:Type -> #inv:(memory -> Type0) -> (r: ref a) ->
                     STATE (lock r inv) (frame_mklock_wp r inv)
 
 
 let acquire_wp r inv l post m = m == emp /\ (forall v. inv (r |> v) ==> post () (r |> v))
 let frame_acquire_wp r inv l post m0 = frame_wp (with_fp [] <| acquire_wp r inv l) (frame_post post) m0
-assume val acquire : #a:Type -> (#r: ref a) -> (#inv : (memory -> prop)) -> (l : lock r inv) ->
+assume val acquire : #a:Type -> (#r: ref a) -> (#inv : (memory -> Type0)) -> (l : lock r inv) ->
                      STATE unit (frame_acquire_wp r inv l)
 
 
 let release_wp r inv l post m = exists v. m == r |> v /\ (m == r |> v ==> inv m /\ post () emp)
 let frame_release_wp r inv l post m0 = frame_wp (with_fp [tosref r] <| release_wp r inv l) (frame_post post) m0
-assume val release : #a:Type -> (#r: ref a) -> (#inv : (memory -> prop)) -> (l : lock r inv) ->
+assume val release : #a:Type -> (#r: ref a) -> (#inv : (memory -> Type0)) -> (l : lock r inv) ->
                      STATE unit (frame_release_wp r inv l)
 
 

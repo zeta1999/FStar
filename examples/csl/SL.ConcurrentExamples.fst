@@ -104,7 +104,7 @@ let test11 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   r := 22;
   free r
 
-let non_neg_inv (r:ref int) : memory -> prop =
+let non_neg_inv (r:ref int) : memory -> Type0 =
   fun m -> exists v. m == r |> v /\ v >= 0
   //fun m -> exists v. v >= 0 /\ m == r |> v
 
@@ -116,7 +116,7 @@ let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
 
 open FStar.Tactics
 
-let take_and_incr (r:ref int) (l : lock r (non_neg_inv r)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+let take_and_incr (r:ref int) (l : lock r (fun m -> by_smt (non_neg_inv r m))) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   acquire l;
   r := !r + 1;
   release l
@@ -145,12 +145,12 @@ let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   free r
 
 #pop-options
-  
-let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+
+let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
   let r = alloc 0 in
   let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
-  acquire l;
+  acquire #_ #_ #(fun m -> by_smt (non_neg_inv r m)) l;
   //let v = !r in
   //assert (v >= 0);
   free r
