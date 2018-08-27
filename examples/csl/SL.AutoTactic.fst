@@ -330,8 +330,7 @@ let rec sl (i:int) : Tac unit =
 
   | BySMT ->
     label "explicit by_smt";
-    smt ();
-    sl (i + 1)
+    smt ()
 
   | Bind ->
     unfold_first_occurrence (`%bind_wp);
