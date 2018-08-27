@@ -16,7 +16,8 @@ module SLHeap = SL.Heap
 
 // --using_facts_from '* -FStar.Tactics -FStar.Reflection'
 
-let ddump m = if T.debugging () then T.dump m
+let ddump = dump // if T.debugging () then T.dump m
+
 
 let memory_cm : cm memory =
   CM emp (<*>) (fun x -> lemma_sep_unit' x) (fun x y z -> ()) (fun x y -> ())
@@ -540,6 +541,7 @@ let prelude' () : Tac unit =
   ignore (implies_intro ())
 
 let sl_auto () : Tac unit =
+   T.set_guard_policy T.Force;
    prelude'();
    ddump "after prelude";
    sl(0);

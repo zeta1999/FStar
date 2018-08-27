@@ -3,6 +3,8 @@ module SL.ConcurrentExamples
 open SL.Base
 open SL.AutoTactic
 
+#push-options "--lax"
+
 let left  r () : ST int (fun p m -> exists v. m == r |> v /\ p 1 (r |> v)) [tosref r] by (sl_auto ()) = 1
 let right r () : ST int (fun p m -> exists v. m == r |> v /\ p 2 (r |> v)) [tosref r] by (sl_auto ()) = 2
 
@@ -128,6 +130,27 @@ let test12 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
   //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   //acquire l;
+  //let v = !r in
+  //assert (v >= 0);
+  ()
+  //free r
+
+let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+  let r = alloc 0 in
+  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
+  acquire l;
+  //let v = !r in
+  //assert (v >= 0);
+  free r
+
+#pop-options
+  
+let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+  let r = alloc 0 in
+  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
+  acquire l;
   //let v = !r in
   //assert (v >= 0);
   free r
