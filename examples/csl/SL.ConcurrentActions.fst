@@ -55,7 +55,7 @@ assume val acquire : #a:Type -> (#r: ref a) -> (#inv : (memory -> prop)) -> (l :
                      STATE unit (frame_acquire_wp r inv l)
 
 
-let release_wp r inv l post m = (exists v. m == r |> v /\ inv m) /\ post () emp
+let release_wp r inv l post m = exists v. m == r |> v /\ (inv m /\ post () emp)
 let frame_release_wp r inv l post m0 = frame_wp (with_fp [tosref r] <| release_wp r inv l) (frame_post post) m0
 assume val release : #a:Type -> (#r: ref a) -> (#inv : (memory -> prop)) -> (l : lock r inv) ->
                      STATE unit (frame_release_wp r inv l)

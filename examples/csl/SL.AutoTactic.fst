@@ -151,6 +151,8 @@ type cmd =
   | Squash    : cmd
   | Implies   : cmd
   | Forall    : cmd
+  | And       : cmd
+  | Eq        : cmd
   | FramePost : cmd
   | Acquire   : cmd
   | Release   : cmd
@@ -188,6 +190,8 @@ let peek_in (t:term) : Tac cmd =
      else if fv_is fv (`%squash)                then Squash
      else if fv_is fv (`%l_imp)                 then Implies
      else if fv_is fv (`%l_Forall)              then Forall
+     else if fv_is fv (`%l_and)                 then And
+     else if fv_is fv (`%eq2)                   then Eq
      else if fv_is fv (`%frame_post)            then FramePost
      else if fv_is fv (`%by_smt)                then BySMT
      else if fv_is fv (`%l_Exists)              then Unknown None //if it is exists x. then we can't unfold, so return None then Unknown None
@@ -312,7 +316,7 @@ let rec sl (i:int) : Tac unit =
     //or we are stuck at some existential in procedure calls
     let cont = solve_procedure_ref_value_existentials false in
     if cont then sl (i + 1)
-    else smt ()
+    else (label "Unknown None"; smt ())
 
   | Unknown (Some fv) ->
     //so here we are unfolding something like swap_wp below
@@ -320,11 +324,12 @@ let rec sl (i:int) : Tac unit =
     // eventually this will use attributes,
     // but we can't currently get at them
     unfold_first_occurrence (fv_to_string fv);
-    ignore (repeat (fun () -> T.split(); smt())); //definedness
+    ignore (repeat (fun () -> T.split(); label ("Unknown (Some " ^ fv_to_string fv ^ ")"); smt())); //definedness
     norm [];
     sl (i + 1)
 
   | BySMT ->
+    label "explicit by_smt";
     smt ();
     sl (i + 1)
 
@@ -381,6 +386,14 @@ let rec sl (i:int) : Tac unit =
   | Forall ->
     ignore (forall_intros ());
     sl (i + 1)
+
+  | And ->
+    T.split ();
+    let k () = sl (i + 1) in
+    iseq [k; k]
+
+  | Eq ->
+    trefl `or_else` smt
 
   | WithFP ->
     unfold_first_occurrence (`%with_fp);
@@ -525,4 +538,9 @@ let prelude' () : Tac unit =
 let sl_auto () : Tac unit =
    prelude'();
    ddump "after prelude";
-   sl(0)
+   sl(0);
+   ddump "after sl";
+   mapAll skolem;
+   mapAllSMT skolem;
+   ddump "after skolem";
+   ()

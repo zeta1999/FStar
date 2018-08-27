@@ -103,7 +103,8 @@ let test11 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   free r
 
 let non_neg_inv (r:ref int) : memory -> prop =
-  fun m -> exists v. v >= 0 /\ m == r |> v
+  fun m -> exists v. m == r |> v /\ v >= 0
+  //fun m -> exists v. v >= 0 /\ m == r |> v
 
 let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
 			      (ensures (v1 == v2))
@@ -112,44 +113,8 @@ let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
  admit ()
 
 open FStar.Tactics
-  
 
-let sklem0 (#a:Type) (#p : a -> Type0) ($v : (exists (x:a). p x)) (phi:Type0) :
-  Lemma (requires (forall x. p x ==> phi))
-        (ensures phi) = ()
-
-let sk_binder (b:binder) =
-  focus (fun () ->
-    dump ("trying : " ^ term_to_string (quote b));
-    let _ =
-    trytac (fun () ->
-      apply_lemma (`(sklem0 (`#(binder_to_term b))));
-      if ngoals () <> 1 then fail "no";
-      dump "got one";
-      let _ = forall_intro () in
-      let _ = implies_intro () in
-      ()
-    ) in ()
-  )
-
-let skolem () =
-  let bs = binders_of_env (cur_env ()) in
-  iter sk_binder bs
-
-let rest () = assume_safe (fun () ->
-  dump "0";
-  let g1::g2::_ = smt_goals () in
-  set_smt_goals [g1];
-  set_goals [g2];
-  eexists _ (fun () -> split (); trefl ());
-  eexists _ (fun () -> split (); flip (); trefl ());
-  dump "1";
-  skolem ();
-  dump "2";
-  ()
-  )
-	
-let take_and_incr (r:ref int) (l : lock r (non_neg_inv r)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto (); rest ()) =
+let take_and_incr (r:ref int) (l : lock r (non_neg_inv r)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   acquire l;
   r := !r + 1;
   release l
