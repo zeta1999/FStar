@@ -18,14 +18,14 @@ let par2 (r:ref int) (s:ref int) : ST int (fun p m -> exists v w. m == (r |> v <
   x + y
 
 
-let par3 (r s t : ref int) : ST int (fun p m -> exists v w u. m == (r |> v <*> s |> w <*> t |> u) /\ p 5 (r |> v <*> s |> w <*> t |> u)) [] by (FStar.Tactics.dump "1"; sl_auto ())
+let par3 (r s t : ref int) : ST int (fun p m -> exists v w u. m == (r |> v <*> s |> w <*> t |> u) /\ p 5 (r |> v <*> s |> w <*> t |> u)) [] by (sl_auto ())
 =
   let (x, z) = par (fun () -> par2 r s) (right t) in
   x + z
 
 (* Funny, the VC for this is much smaller and verifies a lot quicker *)
 #push-options "--use_two_phase_tc false"
-let par3' (r s t : ref int) : ST int (fun p m -> exists v w u. m == (r |> v <*> s |> w <*> t |> u) /\ p 5 (r |> v <*> s |> w <*> t |> u)) [] by (FStar.Tactics.dump "2"; sl_auto ())
+let par3' (r s t : ref int) : ST int (fun p m -> exists v w u. m == (r |> v <*> s |> w <*> t |> u) /\ p 5 (r |> v <*> s |> w <*> t |> u)) [] by (sl_auto ())
 =
   let (x, z) = par (fun () -> par2 r s) (right t) in
   x + z
@@ -142,7 +142,7 @@ let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   //assert (v >= 0);
   free r
 
-let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
+let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
   let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
@@ -151,7 +151,7 @@ let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_au
   //assert (v >= 0);
   free r
 
-let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
+let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
   let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
@@ -160,7 +160,7 @@ let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_au
   //assert (v >= 0);
   free r
 
-let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (dump "1"; sl_auto ()) =
+let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
   let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in

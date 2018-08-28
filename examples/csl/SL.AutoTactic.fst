@@ -16,7 +16,7 @@ module SLHeap = SL.Heap
 
 // --using_facts_from '* -FStar.Tactics -FStar.Reflection'
 
-let ddump = dump // if T.debugging () then T.dump m
+let ddump m = if T.debugging () then T.dump m
 
 
 let memory_cm : cm memory =
