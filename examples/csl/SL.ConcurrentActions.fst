@@ -26,7 +26,7 @@ let par_wp'_lemma
                /\ (par_comp wpa wpb post m1 m2)) = ()
 
 let par_wp #a #b (wpa : st_wp a) (wpb : st_wp b) : st_wp (a * b) =
-  fun post m0 -> frame_wp (par_wp' wpa wpb) (frame_post post) m0
+  frame_wp (par_wp' wpa wpb)
 
 assume val par : (#a:Type) -> (#b:Type) ->
                  (#wpa : st_wp a) ->  (#wpb : st_wp b) ->
@@ -42,21 +42,21 @@ assume val par : (#a:Type) -> (#b:Type) ->
 // Can we use a heap predicate? Can we automate frame inference then?
 assume new type lock : #a:Type -> ref a -> (memory -> Type0) -> Type0
 
-let mklock_wp #a (r:ref a) inv post m = exists v. m == r |> v /\ (m == r|> v ==> (inv m /\ (forall (l:lock r inv). post l emp)))
-let frame_mklock_wp r inv post m0 = frame_wp (with_fp [tosref r] <| mklock_wp r inv) (frame_post post) m0
+let mklock_wp #a (r:ref a) inv post m = exists v. m == r |> v /\ (inv m /\ (forall (l:lock r inv). post l emp))
+let frame_mklock_wp r inv = frame_wp (with_fp [tosref r] <| mklock_wp r inv)
 
 assume val mklock : #a:Type -> #inv:(memory -> Type0) -> (r: ref a) ->
                     STATE (lock r inv) (frame_mklock_wp r inv)
 
 
 let acquire_wp r inv l post m = m == emp /\ (forall v. inv (r |> v) ==> post () (r |> v))
-let frame_acquire_wp r inv l post m0 = frame_wp (with_fp [] <| acquire_wp r inv l) (frame_post post) m0
+let frame_acquire_wp r inv l = frame_wp (with_fp [] <| acquire_wp r inv l)
 assume val acquire : #a:Type -> (#r: ref a) -> (#inv : (memory -> Type0)) -> (l : lock r inv) ->
                      STATE unit (frame_acquire_wp r inv l)
 
 
 let release_wp r inv l post m = exists v. m == r |> v /\ (m == r |> v ==> inv m /\ post () emp)
-let frame_release_wp r inv l post m0 = frame_wp (with_fp [tosref r] <| release_wp r inv l) (frame_post post) m0
+let frame_release_wp r inv l = frame_wp (with_fp [tosref r] <| release_wp r inv l)
 assume val release : #a:Type -> (#r: ref a) -> (#inv : (memory -> Type0)) -> (l : lock r inv) ->
                      STATE unit (frame_release_wp r inv l)
 
@@ -76,7 +76,7 @@ unfold let par_wp'_exp #a #b (wpa : st_wp a) (wpb : st_wp b) (m1 m2 : memory)
         /\ wpa (fun a m1' -> wpb (fun b m2' -> post (a, b) (m1' <*> m2')) m2) m1
 
 let par_wp_exp #a #b (wpa : st_wp a) (wpb : st_wp b) (m1 m2 : memory) : st_wp (a * b) =
-  fun post m0 -> frame_wp (par_wp'_exp wpa wpb m1 m2) (frame_post post) m0
+  frame_wp (par_wp'_exp wpa wpb m1 m2)
 
 assume val par_exp : (#a:Type) -> (#b:Type) ->
                  (#wpa : st_wp a) ->  (#wpb : st_wp b) ->

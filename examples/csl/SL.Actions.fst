@@ -11,7 +11,7 @@ let read_wp (#a:Type) (r:ref a) : st_wp a =
 
 unfold
 let frame_read_wp (#a:Type) (r:ref a) : st_wp a =
-   fun post m0 -> frame_wp (with_fp [tosref r] <| read_wp r) (frame_post post) m0
+   frame_wp (with_fp [tosref r] <| read_wp r)
 
 assume
 val ( ! ) (#a:Type) (r:ref a)
@@ -23,7 +23,7 @@ let write_wp (#a:Type) (r:ref a) (v:a) : st_wp unit =
 
 unfold
 let frame_write_wp (#a:Type) (r:ref a) (v:a) : st_wp unit =
-   fun post m0 -> frame_wp (with_fp [tosref r] <| write_wp r v) (frame_post post) m0
+   frame_wp (with_fp [tosref r] <| write_wp r v)
 
 assume
 val ( := ) (#a:Type) (r:ref a) (v:a)
@@ -35,7 +35,7 @@ let alloc_wp (#a:Type) (v:a) : st_wp (ref a) =
 
 unfold
 let frame_alloc_wp (#a:Type) (v:a) : st_wp (ref a) =
-   fun post m0 -> frame_wp (with_fp [] <| alloc_wp v) (frame_post post) m0
+   frame_wp (with_fp [] <| alloc_wp v)
 
 assume
 val alloc (#a:Type) (v:a)
@@ -47,7 +47,7 @@ let free_wp (#a:Type) (r:ref a) : st_wp unit =
 
 unfold
 let frame_free_wp (#a:Type) (r:ref a) : st_wp unit =
-   fun post m0 -> frame_wp (with_fp [tosref r] <| free_wp r) (frame_post post) m0
+   frame_wp (with_fp [tosref r] <| free_wp r)
 
 assume
 val free (#a:Type) (r:ref a)

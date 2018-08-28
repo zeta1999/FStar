@@ -25,7 +25,7 @@ let memory_cm : cm memory =
 // Fails when called
 // (Error) user tactic failed: norm_term: Cannot type fun _ -> idtac () <: FStar.Tactics.Effect.TAC unit in context ((r1:SepLogic.Heap.ref Prims.int), (r2:SepLogic.Heap.ref Prims.int), (x:Prims.int), (y:Prims.int), (x:SL.Effect.post Prims.int), (x:SepLogic.Heap.memory), (uu___326511:SepLogic.Heap.defined (r1 |> x <*> r2 |> y) /\ x y (r1 |> 2 <*> r2 |> y))). Error = (Variable "a#327038" not found)
 let solve_frame_wp_fails (_:unit) : Tac unit =
-  gpm #unit (fun (a:Type) (wp:st_wp a) (post:memory->post a) (m:memory)
+  gpm #unit (fun (a:Type) (wp:st_wp a) (post:post a) (m:memory)
             (_ : pm_goal(squash (frame_wp wp post m))) -> idtac()) ()
 
 let fv_is (fv:fv) (name:string) = implode_qn (inspect_fv fv) = name
@@ -86,9 +86,9 @@ let eexists (a:Type) (t:unit -> Tac a) : Tac a =
   apply_lemma (`FStar.Classical.exists_intro); later(); norm[];
   fst (divide (ngoals()-1) t dismiss)
 
-let frame_wp_lemma (#a:Type) (#wp:st_wp a) (#f_post:memory -> post a) (m m0 m1:memory)
+let frame_wp_lemma (#a:Type) (#wp:st_wp a) (#f_post:post a) (m m0 m1:memory)
     (_ : (squash ((m0 <*> m1) == m)))
-    (_ : (squash (wp (f_post m1) m0))) :
+    (_ : (squash (wp (frame_post f_post m1) m0))) :
          (squash (frame_wp wp f_post m)) = ()
 
 let ite_wp_lemma (#a:Type) (#wp:st_wp a) (#post:post a) (#m:memory)

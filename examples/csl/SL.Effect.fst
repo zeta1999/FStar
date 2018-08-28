@@ -9,23 +9,20 @@ let st_wp (a:Type) = post a -> pre
 (* unfold *) let return_wp (a:Type) (x:a) :st_wp a = 
   fun post m0 -> post x m0
 
-(* unfold *) let frame_wp (#a:Type) (wp:st_wp a) (post:memory -> post a) (m:memory) =
-  exists (m0 m1:memory). m == (m0 <*> m1) /\ wp (post m1) m0
-
 (* unfold *) let frame_post (#a:Type) (p:post a) (m0:memory) :post a =
   fun x m1 -> p x (m1 <*> m0)  //m1 is the frame
+
+(* unfold *) let frame_wp (#a:Type) (wp:st_wp a) (post:post a) (m:memory) =
+  exists (m0 m1:memory). m == (m0 <*> m1) /\ wp (frame_post post m1) m0
 
 (* unfold *) let bind_wp (r:range) (a:Type) (b:Type) (wp1:st_wp a) (wp2:a -> st_wp b)
   :st_wp b
   = fun post m0 -> wp1 (fun x m1 -> wp2 x post m1) m0
-    // frame_wp wp1 (frame_post (fun x m1 -> frame_wp (wp2 x) (frame_post post) m1)) m0
 
 (* unfold *) let id_wp (a:Type) (x:a) (p:post a) (m:memory) = p x emp
 
 (* unfold *)  let st_if_then_else (a:Type) (p:Type) (wp_then:st_wp a) (wp_else:st_wp a) (post:post a) (m0:memory) =
   l_ITE p (wp_then post m0) (wp_else post m0)
-  // l_ITE p ((bind_wp range_0 a a wp_then (id_wp a)) post m0)
-  //         ((bind_wp range_0 a a wp_else (id_wp a)) post m0)
 
 (* unfold *)  let st_ite_wp (a:Type) (wp:st_wp a) (p:post a) (m0:memory) = wp p m0
 
@@ -74,4 +71,4 @@ let by_smt (x:Type0) : Type0 = x
 
 let with_fp_lemma fp x : Lemma (with_fp fp x == x) [SMTPat (with_fp fp x)] = ()
 
-effect ST (a:Type) (wp:st_wp a) (fp:refs) = STATE a (fun post m -> frame_wp (with_fp fp wp) (frame_post post) m)
+effect ST (a:Type) (wp:st_wp a) (fp:refs) = STATE a (frame_wp (with_fp fp wp))
