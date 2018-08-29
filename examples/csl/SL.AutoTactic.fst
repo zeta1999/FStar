@@ -227,7 +227,7 @@ let peek_cmd () : Tac cmd =
  | _ -> fail "Unrecognized command: not an fv app"
 
 private let __lem_eq_sides t (a b c d : t) (_ : squash (a == c)) (_ : squash (b == d)) :
-			 Lemma ((a == b) == (c == d)) = ()
+                         Lemma ((a == b) == (c == d)) = ()
 
 private let __and_elim #p #q #r (_ : (p /\ q)) (_ : squash (p ==> (q ==> r))) : Lemma r = ()
 
@@ -242,22 +242,24 @@ let destruct_and (b:binder) : Tac (binder * binder) =
 // let _ = assert ((True /\ True) ==> False) by (dump "1"; let _ = destruct_and (implies_intro()) in dump "2")
 
 let canon_binder_mem_eq (b:binder) : Tac unit =
-    dump "canon_binder_mem_eq before";
+    ddump "canon_binder_mem_eq before";
     norm_binder_type [delta_only [`%mem_eq]] b;
     binder_retype b;
     focus (fun () ->
-	apply_lemma (`__lem_eq_sides);
-	guard (List.length (goals()) = 2);
-	canon_monoid_sl' (); trefl ();
-	canon_monoid_sl' (); trefl ();
-	()
+        apply_lemma (`__lem_eq_sides);
+        guard (List.length (goals()) = 2);
+        canon_monoid_sl' (); trefl ();
+        canon_monoid_sl' (); trefl ();
+    ()
     );
-    dump "canon_binder_mem_eq after";
+    ddump "canon_binder_mem_eq after";
     ()
 
 let rec proc_intro (b:binder) : Tac binders =
-  dump ("proc_intro of " ^ binder_to_string b);
-  match peek_in (type_of_binder b) with
+  ddump ("proc_intro of " ^ binder_to_string b);
+  let t = norm_term [weak;hnf;delta] (type_of_binder b) in
+  ddump ("proc_intro, t = " ^ term_to_string t);
+  match peek_in t with
   | Exists ->
     let (_, b) = sk_binder b in
     proc_intro b
@@ -404,11 +406,11 @@ let rec sl (i:int) : Tac unit =
     tlabel "mem_eq";
     unfold_first_occurrence (`%mem_eq);
     norm [delta_only [`%dfst; `%dsnd]];
-    dump "GG 1";
+    ddump "GG 1";
     canon_monoid_sl' ();
-    dump "GG 2";
+    ddump "GG 2";
     trefl ();
-    dump "GG 3";
+    ddump "GG 3";
     ()
 
   | Bind ->

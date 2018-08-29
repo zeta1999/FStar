@@ -120,24 +120,17 @@ let test11 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let non_neg_inv (r:ref int) : memory -> Type0 =
   //fun m -> exists v. m == r |> v /\ v >= 0
-  fun m -> exists v. v >= 0 /\ m == r |> v
+  fun m -> exists v. v >= 0 /\ mem_eq (m == r |> v)
 
 let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
 			      (ensures (v1 == v2))
 			      [SMTPat (r |> v1); SMTPat (r |> v2)]
 			      =
  admit () // should be easily proveable from inside SL.Heap
- 
-let em_invert r v1 v2 m1 m2  : Lemma (requires ((r |> v1 <*> m1) == (r |> v2 <*> m2)))
-			             (ensures (v1 == v2 /\ m1 == m2))
-				     [SMTPat (r |> v1 <*> m1); SMTPat (r |> v2 <*> m2)]
-			      =
- admit () // should be easily proveable from inside SL.Heap
-// actually maybe not, if the heaps are not defined.
 
 open FStar.Tactics
 
-let take_and_incr (r:ref int) (l : lock [tosref r] (fun m -> by_smt (non_neg_inv r m))) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+let take_and_incr (r:ref int) (l : lock [tosref r] (fun m -> non_neg_inv r m)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   acquire l;
   r := !r + 1;
   release l
@@ -148,7 +141,7 @@ let take_and_incr (r:ref int) (l : lock [tosref r] (fun m -> by_smt (non_neg_inv
 
 let test12 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
+  let l = mklock #(fun m -> non_neg_inv r m) [tosref r] in
   //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   //acquire l;
   //let v = !r in
@@ -158,7 +151,7 @@ let test12 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
+  let l = mklock #(fun m -> non_neg_inv r m) [tosref r] in
   //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   //let v = !r in
@@ -167,7 +160,7 @@ let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
+  let l = mklock #(fun m -> non_neg_inv r m) [tosref r] in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   //let v = !r in
@@ -176,7 +169,7 @@ let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
+  let l = mklock #(fun m -> non_neg_inv r m) [tosref r] in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   let v = !r in
@@ -185,7 +178,7 @@ let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
+  let l = mklock #(fun m -> non_neg_inv r m) [tosref r] in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   let v = !r in
@@ -196,6 +189,11 @@ let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test17 (r s : ref int) : ST unit (fun p m -> exists v u. m == (r |> v <*> s |> u) /\ p () emp) [] by (sl_auto ()) =
   let l = mklock #(fun m -> True) [tosref r; tosref s] in
+  ()
+
+(* Same thing with the list backwards... should be robust *)
+let test17' (r s : ref int) : ST unit (fun p m -> exists v u. m == (r |> v <*> s |> u) /\ p () emp) [] by (sl_auto ()) =
+  let l = mklock #(fun m -> True) [tosref s; tosref r] in
   ()
   
 let test18 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
@@ -226,6 +224,15 @@ let test21 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_
   let v = !r in
   let u = !s in
   ()
+
+(* WARNING: this lemma is crap, this only holds if both heaps are valid
+ * (i.e. if `r` is not in m1 nor m2). I'll keep it here for now
+ * to show that heap inference is working correctly in the following two examples. *)
+let em_invert r v1 v2 m1 m2  : Lemma (requires ((r |> v1 <*> m1) == (r |> v2 <*> m2)))
+			             (ensures (v1 == v2 /\ m1 == m2))
+				     [SMTPat (r |> v1 <*> m1); SMTPat (r |> v2 <*> m2)]
+			      =
+ admit ()
 
 let test22 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_auto ()) =
   let r = alloc 1 in
