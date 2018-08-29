@@ -59,40 +59,38 @@ let par_set (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 (r |> 
 open FStar.Tactics
 module T = FStar.Tactics
 
-#set-options "--print_implicits --ugly"
-
 let _ =
   assert (dfst #int #(fun j -> int) (| 1, 2 |) == 1)
       by (dump "1"; compute (); dump "2")
       
+//#set-options "--print_implicits --ugly"
+
+#set-options "--print_full_names"
+
 let test_acq (r:ref int) (l:lock [tosref r] (fun _ -> True)) : ST int (fun p m -> m == emp /\ (forall v. p 3 (r |> v))) [tosref r]
-  by (sl_auto ();
-      T.dump "before";
-      set_goals (smt_goals ());
-      set_smt_goals [];
-      let _ = T.for_each_binder (fun b -> T.norm_binder_type [delta;iota;zeta;primops] b) in
-      T.dump "after";
-      ())
+  by (sl_auto ())
     
   =
   acquire l;
   3
 
-let test_acq_rel (r:ref int) (l:lock r (fun _ -> True)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ())
+let test_acq_rel (r:ref int) (l:lock [tosref r] (fun _ -> True)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ())
   =
   acquire l;
   let v = !r in
   release l
 
-let set_and_ret (r:ref int) (l : lock r (fun _ -> True)) (n : nat) () : ST int (fun p m -> m == emp /\ p n emp) [] by (sl_auto ()) =
+let set_and_ret (r:ref int) (l : lock [tosref r] (fun _ -> True)) (n : nat) () : ST int (fun p m -> m == emp /\ p n emp) [] by (sl_auto ()) =
   acquire l;
   r := n;
   release l;
   n
 
+#set-options "--print_implicits"
+
 (* Note: final heap is empty, it is the lock that owns `r` *)
 let test06 (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 emp) [] by (sl_auto ()) =
-  let l = mklock #_ #(fun _ -> True) r  in
+  let l = mklock #(fun _ -> True) [tosref r]  in
   let (x, y) = par (set_and_ret r l 1) (set_and_ret r l 2) in
   x + y
 
@@ -132,7 +130,7 @@ let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
 
 open FStar.Tactics
 
-let take_and_incr (r:ref int) (l : lock r (fun m -> by_smt (non_neg_inv r m))) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+let take_and_incr (r:ref int) (l : lock [tosref r] (fun m -> by_smt (non_neg_inv r m))) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   acquire l;
   r := !r + 1;
   release l
@@ -143,7 +141,7 @@ let take_and_incr (r:ref int) (l : lock r (fun m -> by_smt (non_neg_inv r m))) :
 
 let test12 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
   //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   //acquire l;
   //let v = !r in
@@ -153,7 +151,7 @@ let test12 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
   //let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   //let v = !r in
@@ -162,7 +160,7 @@ let test13 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   //let v = !r in
@@ -171,7 +169,7 @@ let test14 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   let v = !r in
@@ -180,7 +178,7 @@ let test15 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
 
 let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
-  let l = mklock #_ #(fun m -> by_smt (non_neg_inv r m)) r in
+  let l = mklock #(fun m -> by_smt (non_neg_inv r m)) [tosref r] in
   let _ = par (fun () -> take_and_incr r l) (fun () -> take_and_incr r l) in
   acquire l;
   let v = !r in

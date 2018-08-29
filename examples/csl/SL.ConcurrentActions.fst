@@ -42,30 +42,54 @@ assume val par : (#a:Type) -> (#b:Type) ->
  // Can we use a heap predicate? Can we automate frame inference then?
 assume new type lock : list sref -> (memory -> Type0) -> Type0
 
-unfold let dom_srefs (fp:list sref) (m:memory) =
+(* Does there exist a memory with domain fp such that pred? *)
+let dom_exists (fp:list sref) (pred:memory -> Type0) : Type0 =
   let rec aux acc fp : Tot Type0 (decreases fp) =
     match fp with
-    | [] -> m == acc
+    | [] -> pred acc
+    (* this case prevents spurious `emp <*>` which actually matter (the pattern doesn't kick in?) *)
+    (* the pattern was wrong, so not realy needed now, but we might as well keep it I guess *)
+    | [h] ->
+      let ty = dfst h in
+      let r : ref ty = dsnd #Type #ref h in
+      exists (v:ty). pred (r |> v)
     | h :: t -> (* Note, if we match on the sigma pair here, we might prevent reduction *)
       let ty = dfst h in
       let r : ref ty = dsnd #Type #ref h in
       exists (v:ty). aux (acc <*> r |> v) t
   in aux emp fp
-  
-let mklock_wp (fp:list sref) (inv : memory -> Type0) post m = dom_srefs fp m /\ (inv m /\ (forall (l:lock fp inv). post l emp))
+
+(* Do all memories with domain fp satisfy pred? *)
+let dom_forall (fp:list sref) (pred:memory -> Type0) : Type0 =
+  let rec aux acc fp : Tot Type0 (decreases fp) =
+    match fp with
+    | [] -> pred acc
+    (* this case prevents spurious `emp <*>` which actually matter (the pattern doesn't kick in?) *)
+    (* the pattern was wrong, so not realy needed now, but we might as well keep it I guess *)
+    | [h] ->
+      let ty = dfst h in
+      let r : ref ty = dsnd #Type #ref h in
+      forall (v:ty). pred (r |> v)
+    | h :: t -> (* Note, if we match on the sigma pair here, we might prevent reduction *)
+      let ty = dfst h in
+      let r : ref ty = dsnd #Type #ref h in
+      forall (v:ty). aux (acc <*> r |> v) t
+  in aux emp fp
+
+let mklock_wp (fp:list sref) (inv : memory -> Type0) post m = dom_exists fp (fun m' -> m' == m /\ inv m /\ (forall (l:lock fp inv). post l emp))
 let frame_mklock_wp fp inv = frame_wp (with_fp fp <| mklock_wp fp inv)
 
 assume val mklock : #inv:(memory -> Type0) -> (fp : list sref) ->
                     STATE (lock fp inv) (frame_mklock_wp fp inv)
 
 
-let acquire_wp fp inv l post m = m == emp /\ (forall m. dom_srefs fp m /\ inv m ==> post () m)
+let acquire_wp fp inv l post m = m == emp /\ (dom_forall fp (fun m -> inv m ==> post () m))
 let frame_acquire_wp r inv l = frame_wp (with_fp [] <| acquire_wp r inv l)
 assume val acquire : (#fp: list sref) -> (#inv : (memory -> Type0)) -> (l : lock fp inv) ->
                      STATE unit (frame_acquire_wp fp inv l)
 
 
-let release_wp fp inv l post m = dom_srefs fp m /\ inv m /\ post () emp
+let release_wp fp inv l post m = dom_exists fp (fun m' -> m' == m /\ inv m /\ post () emp)
 let frame_release_wp fp inv l = frame_wp (with_fp fp <| release_wp fp inv l)
 assume val release : (#fp : list sref) -> (#inv : (memory -> Type0)) -> (l : lock fp inv) ->
                      STATE unit (frame_release_wp fp inv l)

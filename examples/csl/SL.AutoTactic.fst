@@ -236,7 +236,7 @@ let elim_fp () : Tac unit = apply_lemma (`__elim_fp)
 //return t_refl if we did some something, so that the caller can make progress on rest of the VC
 let rec solve_procedure_ref_value_existentials (use_trefl:bool) :Tac bool =
   let g = cur_goal () in
-  ddump "solve_procudure_ref_value_existentials";
+  ddump "solve_procedure_ref_value_existentials";
   match term_as_formula g with
   | Exists x t ->
     let w = uvar_env (cur_env ()) (Some (inspect_bv x).bv_sort) in
@@ -244,8 +244,8 @@ let rec solve_procedure_ref_value_existentials (use_trefl:bool) :Tac bool =
     solve_procedure_ref_value_existentials true
   | _ ->
    if use_trefl then begin
-     let _ = T.repeat T.split in
-     trefl ();
+     //let _ = T.repeat T.split in
+     //trefl ();
      true
    end
    else false
@@ -308,7 +308,9 @@ let rec sl (i:int) : Tac unit =
 
   //post procedure call, we sometimes have a m == m kind of expression in the wp
   //this will solve it in the tactic itself rather than farming it out to smt
-  norm [simplify];
+  //norm [simplify];
+  // GM: Hard to predict behaviour if so
+  
   let c = peek_cmd () in
   ddump ("c = " ^ term_to_string (quote c));
   match c with
@@ -324,10 +326,11 @@ let rec sl (i:int) : Tac unit =
 
     // eventually this will use attributes,
     // but we can't currently get at them
-    unfold_first_occurrence (fv_to_string fv);
-    ignore (repeat (fun () -> T.split(); tlabel ("Unknown (Some " ^ fv_to_string fv ^ "),"); smt())); //definedness
-    norm [];
-    sl (i + 1)
+    trivial `or_else` (fun () ->
+	unfold_first_occurrence (fv_to_string fv);
+	tlabel ("Unknown (Some " ^ fv_to_string fv ^ "),");
+	norm [];
+	sl (i + 1))
 
   | BySMT ->
     tlabel "explicit by_smt,";
