@@ -58,7 +58,7 @@ val lemma_sep_unit (m:memory)
 
 val lemma_sep_unit' (m:memory)
   : Lemma ((emp <*> m) == m)
-          [SMTPat (m <*> emp)]
+          [SMTPat (emp <*> m)]
 
 val lemma_sep_comm (m0 m1:memory)
   : Lemma ((m0 <*> m1) == (m1 <*> m0))
