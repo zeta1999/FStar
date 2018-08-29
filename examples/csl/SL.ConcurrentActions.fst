@@ -52,12 +52,14 @@ let dom_exists (fp:list sref) (pred:memory -> Type0) : Type0 =
     | [h] ->
       let ty = dfst h in
       let r : ref ty = dsnd #Type #ref h in
-      exists (v:ty). pred (r |> v)
+      exists (v:ty). pred (acc <*> r |> v)
     | h :: t -> (* Note, if we match on the sigma pair here, we might prevent reduction *)
       let ty = dfst h in
       let r : ref ty = dsnd #Type #ref h in
       exists (v:ty). aux (acc <*> r |> v) t
   in aux emp fp
+
+let test (r s : ref int) = dom_exists [tosref s; tosref r] (fun m -> m <*> emp == m)
 
 (* Do all memories with domain fp satisfy pred? *)
 let dom_forall (fp:list sref) (pred:memory -> Type0) : Type0 =
@@ -69,14 +71,15 @@ let dom_forall (fp:list sref) (pred:memory -> Type0) : Type0 =
     | [h] ->
       let ty = dfst h in
       let r : ref ty = dsnd #Type #ref h in
-      forall (v:ty). pred (r |> v)
+      forall (v:ty). pred (acc <*> r |> v)
     | h :: t -> (* Note, if we match on the sigma pair here, we might prevent reduction *)
       let ty = dfst h in
       let r : ref ty = dsnd #Type #ref h in
       forall (v:ty). aux (acc <*> r |> v) t
   in aux emp fp
 
-let mklock_wp (fp:list sref) (inv : memory -> Type0) post m = dom_exists fp (fun m' -> m' == m /\ inv m /\ (forall (l:lock fp inv). post l emp))
+let mklock_wp (fp:list sref) (inv : memory -> Type0) post m =
+  dom_exists fp (fun m' -> mem_eq (m' == m) /\ inv m /\ (forall (l:lock fp inv). post l emp))
 let frame_mklock_wp fp inv = frame_wp (with_fp fp <| mklock_wp fp inv)
 
 assume val mklock : #inv:(memory -> Type0) -> (fp : list sref) ->
@@ -89,7 +92,8 @@ assume val acquire : (#fp: list sref) -> (#inv : (memory -> Type0)) -> (l : lock
                      STATE unit (frame_acquire_wp fp inv l)
 
 
-let release_wp fp inv l post m = dom_exists fp (fun m' -> m' == m /\ inv m /\ post () emp)
+let release_wp fp inv l post m =
+  dom_exists fp (fun m' -> mem_eq (m' == m) /\ inv m /\ post () emp)
 let frame_release_wp fp inv l = frame_wp (with_fp fp <| release_wp fp inv l)
 assume val release : (#fp : list sref) -> (#inv : (memory -> Type0)) -> (l : lock fp inv) ->
                      STATE unit (frame_release_wp fp inv l)

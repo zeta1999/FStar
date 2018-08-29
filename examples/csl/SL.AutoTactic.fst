@@ -122,6 +122,16 @@ let pointsto_to_string (fp_refs:list term) (t:term) : Tac string =
     else "2"
   | _, _ -> "2" // have to accept at least Tv_Uvar _ here
 
+let pointsto_to_string'  (t:term) : Tac string =
+  let hd, tl = collect_app t in
+  ddump (term_to_string hd);
+  match inspect hd, tl with
+  | Tv_FVar fv, [(ta, Q_Implicit); (tr, Q_Explicit); (tv, Q_Explicit)] ->
+    if fv_is fv (`%(op_Bar_Greater)) then
+       "0" ^ term_to_string tr
+    else "2"
+  | _, _ -> "2" // have to accept at least Tv_Uvar _ here
+
 let sort_sl (a:Type) (vm:vmap a string) (xs:list var) : Tot (list var) =
   List.Tot.sortWith #var
     (fun x y -> FStar.String.compare (select_extra y vm)
@@ -132,6 +142,10 @@ let sort_sl_correct : permute_correct sort_sl =
 
 let canon_monoid_sl (fp:list term) : Tac unit =
   canon_monoid_with string (pointsto_to_string fp) ""
+                            sort_sl (fun #a -> sort_sl_correct #a) memory_cm
+
+let canon_monoid_sl' () : Tac unit =
+  canon_monoid_with string pointsto_to_string' ""
                             sort_sl (fun #a -> sort_sl_correct #a) memory_cm
 
 let binder_to_term (b : binder) : Tac term =
@@ -152,6 +166,7 @@ type cmd =
   | Squash    : cmd
   | Implies   : cmd
   | Forall    : cmd
+  | Exists    : cmd
   | And       : cmd
   | Eq        : cmd
   | FramePost : cmd
@@ -159,6 +174,7 @@ type cmd =
   | Release   : cmd
   | Unknown   : option fv -> cmd
   | BySMT     : cmd
+  | MemEq     : cmd
 
 let peek_in (t:term) : Tac cmd =
     let hd, tl = collect_app t in
@@ -191,11 +207,12 @@ let peek_in (t:term) : Tac cmd =
      else if fv_is fv (`%squash)                then Squash
      else if fv_is fv (`%l_imp)                 then Implies
      else if fv_is fv (`%l_Forall)              then Forall
+     else if fv_is fv (`%l_Exists)              then Exists
      else if fv_is fv (`%l_and)                 then And
      else if fv_is fv (`%eq2)                   then Eq
      else if fv_is fv (`%frame_post)            then FramePost
      else if fv_is fv (`%by_smt)                then BySMT
-     else if fv_is fv (`%l_Exists)              then Unknown None //if it is exists x. then we can't unfold, so return None then Unknown None
+     else if fv_is fv (`%mem_eq)                then MemEq
      else if fv_is fv (`%l_False)               then Unknown None //AR: TODO: this is quite hacky, we need a better way then Unknown None
      else Unknown (Some fv)
     | _ -> Unknown None
@@ -208,6 +225,52 @@ let peek_cmd () : Tac cmd =
     if fv_is fv (`%squash) then peek_in t1
     else fail "Unrecognized command: not a squash"
  | _ -> fail "Unrecognized command: not an fv app"
+
+private let __lem_eq_sides t (a b c d : t) (_ : squash (a == c)) (_ : squash (b == d)) :
+			 Lemma ((a == b) == (c == d)) = ()
+
+private let __and_elim #p #q #r (_ : (p /\ q)) (_ : squash (p ==> (q ==> r))) : Lemma r = ()
+
+let destruct_and (b:binder) : Tac (binder * binder) =
+  apply_lemma (`(__and_elim (`#(binder_to_term b))));
+  if ngoals () <> 1 then fail "no";
+  clear b;
+  let b1 = implies_intro () in
+  let b2 = implies_intro () in
+  (b1, b2)
+
+// let _ = assert ((True /\ True) ==> False) by (dump "1"; let _ = destruct_and (implies_intro()) in dump "2")
+
+let canon_binder_mem_eq (b:binder) : Tac unit =
+    dump "canon_binder_mem_eq before";
+    norm_binder_type [delta_only [`%mem_eq]] b;
+    binder_retype b;
+    focus (fun () ->
+	apply_lemma (`__lem_eq_sides);
+	guard (List.length (goals()) = 2);
+	canon_monoid_sl' (); trefl ();
+	canon_monoid_sl' (); trefl ();
+	()
+    );
+    dump "canon_binder_mem_eq after";
+    ()
+
+let rec proc_intro (b:binder) : Tac binders =
+  dump ("proc_intro of " ^ binder_to_string b);
+  match peek_in (type_of_binder b) with
+  | Exists ->
+    let (_, b) = sk_binder b in
+    proc_intro b
+
+  | And ->
+    let (b1, b2) = destruct_and b in
+    proc_intro b1 @ proc_intro b2
+
+  | MemEq ->
+    canon_binder_mem_eq b;
+    [b]
+
+  | _ -> [b]
 
 let unfold_first_occurrence (name:string) : Tac unit =
   let should_rewrite (hd:term) : Tac (bool * int) =
@@ -238,7 +301,7 @@ let rec solve_procedure_ref_value_existentials (use_trefl:bool) :Tac bool =
   let g = cur_goal () in
   ddump "solve_procedure_ref_value_existentials";
   match term_as_formula g with
-  | Exists x t ->
+  | Reflection.Formula.Exists x t ->
     let w = uvar_env (cur_env ()) (Some (inspect_bv x).bv_sort) in
     witness w;
     solve_procedure_ref_value_existentials true
@@ -314,6 +377,7 @@ let rec sl (i:int) : Tac unit =
   let c = peek_cmd () in
   ddump ("c = " ^ term_to_string (quote c));
   match c with
+  | Exists
   | Unknown None ->
     //either we are done
     //or we are stuck at some existential in procedure calls
@@ -327,14 +391,25 @@ let rec sl (i:int) : Tac unit =
     // eventually this will use attributes,
     // but we can't currently get at them
     trivial `or_else` (fun () ->
-	unfold_first_occurrence (fv_to_string fv);
-	tlabel ("Unknown (Some " ^ fv_to_string fv ^ "),");
-	norm [];
-	sl (i + 1))
+    unfold_first_occurrence (fv_to_string fv);
+    tlabel ("Unknown (Some " ^ fv_to_string fv ^ "),");
+    norm [];
+    sl (i + 1))
 
   | BySMT ->
     tlabel "explicit by_smt,";
     smt ()
+
+  | MemEq ->
+    tlabel "mem_eq";
+    unfold_first_occurrence (`%mem_eq);
+    norm [delta_only [`%dfst; `%dsnd]];
+    dump "GG 1";
+    canon_monoid_sl' ();
+    dump "GG 2";
+    trefl ();
+    dump "GG 3";
+    ()
 
   | Bind ->
     unfold_first_occurrence (`%bind_wp);
@@ -350,7 +425,7 @@ let rec sl (i:int) : Tac unit =
     //we now have 2 goals
 
     let f () :Tac unit =
-      ignore (implies_intro ());
+      ignore (proc_intro (implies_intro ()));
       sl (i + 1)
     in
 
@@ -358,12 +433,12 @@ let rec sl (i:int) : Tac unit =
 
   | Close ->
     apply_lemma (`close_wp_lemma);
-    ignore (forall_intros ());
+    ignore (Tactics.Util.map proc_intro (forall_intros ()));
     sl (i + 1)
 
   | Assume ->
     apply_lemma (`assume_p_lemma);
-    ignore (implies_intro ());
+    ignore (proc_intro (implies_intro ()));
     sl (i + 1)
 
   | Read ->
@@ -383,11 +458,11 @@ let rec sl (i:int) : Tac unit =
     sl (i + 1)
 
   | Implies ->
-    ignore (implies_intros ());
+    ignore (proc_intro (implies_intro ()));
     sl (i + 1)
 
   | Forall ->
-    ignore (forall_intros ());
+    ignore (proc_intro (forall_intro ()));
     sl (i + 1)
 
   | And ->
@@ -434,6 +509,8 @@ let rec sl (i:int) : Tac unit =
     //equality goal from frame_wp_lemma
     mapply (binder_to_term heap_eq);
 
+    canon_binder_mem_eq heap_eq;
+    
     //T.split(); smt(); //definedness
     ddump ("after frame lemma - 2");
     sl(i + 1)
@@ -499,10 +576,10 @@ let prelude' () : Tac unit =
 
   //unfolding frame_wp introduces two existentials m0 and m1 for frames
   //introduce them in the context
-  let h = implies_intro () in
+  let h = Tactics.Logic.implies_intro () in
   __elim_exists h;
   let m0 = forall_intro_as "m0" in
-  let h = implies_intro () in
+  let h = Tactics.Logic.implies_intro () in
   __elim_exists h;
   let m1 = forall_intro_as "m1" in
 
@@ -527,7 +604,7 @@ let prelude' () : Tac unit =
   ddump "Before elim ref values";
   ignore (repeat (fun () -> let h = implies_intro () in
                            __elim_exists h;
-			   ignore (forall_intro ())));
+               ignore (forall_intro ())));
   ddump "After elim ref values";
   
   //now we are at the small footprint style wp
@@ -548,7 +625,4 @@ let sl_auto () : Tac unit =
    ddump "after prelude";
    sl(0);
    ddump "after sl";
-   mapAll skolem;
-   mapAllSMT skolem;
-   ddump "after skolem";
    ()

@@ -86,7 +86,7 @@ let set_and_ret (r:ref int) (l : lock [tosref r] (fun _ -> True)) (n : nat) () :
   release l;
   n
 
-#set-options "--print_implicits"
+//#set-options "--print_implicits"
 
 (* Note: final heap is empty, it is the lock that owns `r` *)
 let test06 (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 emp) [] by (sl_auto ()) =
@@ -127,6 +127,13 @@ let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
 			      [SMTPat (r |> v1); SMTPat (r |> v2)]
 			      =
  admit () // should be easily proveable from inside SL.Heap
+ 
+let em_invert r v1 v2 m1 m2  : Lemma (requires ((r |> v1 <*> m1) == (r |> v2 <*> m2)))
+			             (ensures (v1 == v2 /\ m1 == m2))
+				     [SMTPat (r |> v1 <*> m1); SMTPat (r |> v2 <*> m2)]
+			      =
+ admit () // should be easily proveable from inside SL.Heap
+// actually maybe not, if the heaps are not defined.
 
 open FStar.Tactics
 
@@ -184,3 +191,62 @@ let test16 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let v = !r in
   assert (v >= 0);
   free r
+
+(* Double locks... hey, if it works for 1 and 2, it works for n *)
+
+let test17 (r s : ref int) : ST unit (fun p m -> exists v u. m == (r |> v <*> s |> u) /\ p () emp) [] by (sl_auto ()) =
+  let l = mklock #(fun m -> True) [tosref r; tosref s] in
+  ()
+  
+let test18 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+  let r = alloc 0 in
+  let s = alloc 1 in
+  let l = mklock #(fun m -> True) [tosref r; tosref s] in
+  ()
+
+(* Coupled references *)
+let test19 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
+  let r = alloc 1 in
+  let s = alloc 1 in
+  let l = mklock #(fun m -> exists v u. m == (r |> u <*> s |> v) /\ v == u)  [tosref r; tosref s] in
+  ()
+  
+let test20 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_auto ()) =
+  let r = alloc 1 in
+  let s = alloc 1 in
+  let l = mklock #(fun m -> exists v u. m == (r |> u <*> s |> v) /\ v == u)  [tosref r; tosref s] in
+  acquire l;
+  ()
+
+let test21 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_auto ()) =
+  let r = alloc 1 in
+  let s = alloc 1 in
+  let l = mklock #(fun m -> exists v u. m == (r |> u <*> s |> v) /\ v == u)  [tosref r; tosref s] in
+  acquire l;
+  let v = !r in
+  let u = !s in
+  ()
+
+let test22 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_auto ()) =
+  let r = alloc 1 in
+  let s = alloc 1 in
+  let l = mklock #(fun m -> exists v u. mem_eq (m == (r |> u <*> s |> v)) /\ v == u)  [tosref r; tosref s] in
+  //let l = mklock #(fun m -> exists v u. m == (r |> u <*> s |> v) /\ v == u)  [tosref r; tosref s] in
+  acquire l;
+  let v = !r in
+  let u = !s in
+  assert (v == u); (* Requires destructing a heap equality in the context *)
+  ()
+
+(* Calling an unknown procedure, can still conclude the invariant *)
+assume val kinda_havoc : unit -> ST unit (fun p m -> m == emp /\ p () emp) []
+let test23 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_auto ()) =
+  let r = alloc 1 in
+  let s = alloc 1 in
+  let l = mklock #(fun m -> exists v u. mem_eq (m == (r |> u <*> s |> v)) /\ v == u)  [tosref r; tosref s] in
+  kinda_havoc ();
+  acquire l;
+  let v = !r in
+  let u = !s in
+  assert (v == u); (* Requires destructing a heap equality in the context *)
+  ()
