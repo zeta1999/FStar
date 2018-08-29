@@ -37,28 +37,38 @@ assume val par : (#a:Type) -> (#b:Type) ->
 
 
 (* Locks and operations *)
-// Locks are over a particular reference r.
-// Can we use a list or a set? Non-trivial to make it work. Even a set of addresses causes many blowups.
-// Can we use a heap predicate? Can we automate frame inference then?
-assume new type lock : #a:Type -> ref a -> (memory -> Type0) -> Type0
+ // Locks are over a particular reference r.
+ // Can we use a list or a set? Non-trivial to make it work. Even a set of addresses causes many blowups.
+ // Can we use a heap predicate? Can we automate frame inference then?
+assume new type lock : list sref -> (memory -> Type0) -> Type0
 
-let mklock_wp #a (r:ref a) inv post m = exists v. m == r |> v /\ (inv m /\ (forall (l:lock r inv). post l emp))
-let frame_mklock_wp r inv = frame_wp (with_fp [tosref r] <| mklock_wp r inv)
+unfold let dom_srefs (fp:list sref) (m:memory) =
+  let rec aux acc fp : Tot Type0 (decreases fp) =
+    match fp with
+    | [] -> m == acc
+    | h :: t -> (* Note, if we match on the sigma pair here, we might prevent reduction *)
+      let ty = dfst h in
+      let r : ref ty = dsnd #Type #ref h in
+      exists (v:ty). aux (acc <*> r |> v) t
+  in aux emp fp
+  
+let mklock_wp (fp:list sref) (inv : memory -> Type0) post m = dom_srefs fp m /\ (inv m /\ (forall (l:lock fp inv). post l emp))
+let frame_mklock_wp fp inv = frame_wp (with_fp fp <| mklock_wp fp inv)
 
-assume val mklock : #a:Type -> #inv:(memory -> Type0) -> (r: ref a) ->
-                    STATE (lock r inv) (frame_mklock_wp r inv)
+assume val mklock : #inv:(memory -> Type0) -> (fp : list sref) ->
+                    STATE (lock fp inv) (frame_mklock_wp fp inv)
 
 
-let acquire_wp r inv l post m = m == emp /\ (forall v. inv (r |> v) ==> post () (r |> v))
+let acquire_wp fp inv l post m = m == emp /\ (forall m. dom_srefs fp m /\ inv m ==> post () m)
 let frame_acquire_wp r inv l = frame_wp (with_fp [] <| acquire_wp r inv l)
-assume val acquire : #a:Type -> (#r: ref a) -> (#inv : (memory -> Type0)) -> (l : lock r inv) ->
-                     STATE unit (frame_acquire_wp r inv l)
+assume val acquire : (#fp: list sref) -> (#inv : (memory -> Type0)) -> (l : lock fp inv) ->
+                     STATE unit (frame_acquire_wp fp inv l)
 
 
-let release_wp r inv l post m = exists v. m == r |> v /\ (m == r |> v ==> inv m /\ post () emp)
-let frame_release_wp r inv l = frame_wp (with_fp [tosref r] <| release_wp r inv l)
-assume val release : #a:Type -> (#r: ref a) -> (#inv : (memory -> Type0)) -> (l : lock r inv) ->
-                     STATE unit (frame_release_wp r inv l)
+let release_wp fp inv l post m = dom_srefs fp m /\ inv m /\ post () emp
+let frame_release_wp fp inv l = frame_wp (with_fp fp <| release_wp fp inv l)
+assume val release : (#fp : list sref) -> (#inv : (memory -> Type0)) -> (l : lock fp inv) ->
+                     STATE unit (frame_release_wp fp inv l)
 
 
 // let locking_wp r l wp post m =

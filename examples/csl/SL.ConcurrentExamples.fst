@@ -54,8 +54,26 @@ let par_set (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 (r |> 
 //  let (x, y) = par_exp emp emp (fun () -> l 1) (fun () -> l 2) in
 //  x + y
 
+#set-options "--debug SL.ConcurrentExamples --debug_level Tac"
 
-let test_acq (r:ref int) (l:lock r (fun _ -> True)) : ST int (fun p m -> m == emp /\ (forall v. p 3 (r |> v))) [tosref r] by (sl_auto ())
+open FStar.Tactics
+module T = FStar.Tactics
+
+#set-options "--print_implicits --ugly"
+
+let _ =
+  assert (dfst #int #(fun j -> int) (| 1, 2 |) == 1)
+      by (dump "1"; compute (); dump "2")
+      
+let test_acq (r:ref int) (l:lock [tosref r] (fun _ -> True)) : ST int (fun p m -> m == emp /\ (forall v. p 3 (r |> v))) [tosref r]
+  by (sl_auto ();
+      T.dump "before";
+      set_goals (smt_goals ());
+      set_smt_goals [];
+      let _ = T.for_each_binder (fun b -> T.norm_binder_type [delta;iota;zeta;primops] b) in
+      T.dump "after";
+      ())
+    
   =
   acquire l;
   3
