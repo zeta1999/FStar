@@ -954,7 +954,10 @@ let head_matches_delta env wl t1 t2 : (match_result * option<(typ*typ)>) =
             in
             let t' = N.normalize steps env t in
             if U.eq_tm t t' = U.Equal //if we didn't inline anything
-            then None
+            then let _ = if Env.debug env <| Options.Other "RelDelta"
+                         then BU.print1 "Did not inline %s\n"
+                                        (Print.term_to_string t) in
+                 None
             else let _ = if Env.debug env <| Options.Other "RelDelta"
                          then BU.print2 "Inlined %s to %s\n"
                                         (Print.term_to_string t)

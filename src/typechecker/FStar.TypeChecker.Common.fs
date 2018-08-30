@@ -84,6 +84,8 @@ let rec delta_depth_greater_than l m = match l, m with
     | Delta_constant_at_level i,   Delta_constant_at_level j   -> i > j
     | Delta_abstract d, _                                      -> delta_depth_greater_than d m
     | _, Delta_abstract d                                      -> delta_depth_greater_than l d
+    (* equational > constant *)
+    (* GM: just an arbitrary choice? *)
     | Delta_equational_at_level _, _                           -> true
     | _, Delta_equational_at_level _                           -> false
 
