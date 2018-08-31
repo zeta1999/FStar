@@ -151,7 +151,6 @@ val is_effect_name: env -> lident -> bool
 val find_all_datacons: env -> lident -> option<list<lident>>
 val lookup_letbinding_quals: env -> lident -> list<qualifier>
 val resolve_module_name: env:env -> lid:lident -> honor_ns:bool -> option<lident>
-val fail_if_qualified_by_curmodule: env -> lident -> unit
 val resolve_to_fully_qualified_name : env:env -> l:lident -> option<lident>
 val fv_qual_of_se : sigelt -> option<fv_qual>
 val delta_depth_of_declaration: lident -> list<qualifier> -> delta_depth

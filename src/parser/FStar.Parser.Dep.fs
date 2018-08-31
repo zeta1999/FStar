@@ -379,7 +379,11 @@ let collect_one
   let deps     : ref<(list<dependence>)> = BU.mk_ref [] in
   let mo_roots : ref<(list<dependence>)> = BU.mk_ref [] in
   let add_dep deps d =
-    if not (List.existsML (dep_subsumed_by d) !deps) then
+    if Options.debug_any () then
+        BU.print2 "GG (%s) new dep %s\n" filename (dep_to_string d);
+    if not (List.existsML (dep_subsumed_by d) !deps)
+            //&& module_name_of_dep d <> lowercase_module_name filename
+       then
       deps := d :: !deps
   in
   let working_map = smap_copy original_map in
@@ -811,15 +815,19 @@ let collect (all_cmd_line_files: list<file_name>)
               failwith (BU.format1 "Failed to find dependences of %s" filename)
         in
         let direct_deps = direct_deps |> List.collect (fun x ->
+            if Options.debug_any () then
+              BU.print2 "GG filename = %s, x = %s\n" filename (dep_to_string x);
             match x with
             | UseInterface f
             | PreferInterface f ->
               begin
-              match implementation_of file_system_map f with
+              let i = implementation_of file_system_map f in
+              BU.print1 "GG i = %s\n" (FStar.Common.string_of_option (fun x -> x) i);
+              match i with
               | None -> [x]
               | Some fn when fn=filename ->
                 //don't add trivial self-loops
-                [x]
+                []
               | _ ->
                 //if a module A uses B
                 //then detect cycles through both B.fsti
