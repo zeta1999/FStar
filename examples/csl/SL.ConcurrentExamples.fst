@@ -228,7 +228,7 @@ let test21 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_
 (* WARNING: this lemma is crap, this only holds if both heaps are valid
  * (i.e. if `r` is not in m1 nor m2). I'll keep it here for now
  * to show that heap inference is working correctly in the following two examples. *)
-let em_invert r v1 v2 m1 m2  : Lemma (requires ((r |> v1 <*> m1) == (r |> v2 <*> m2)))
+let em_invert r v1 v2 m1 m2  : Lemma (requires (defined (r |> v1 <*> m1) /\ (r |> v1 <*> m1) == (r |> v2 <*> m2)))
 			             (ensures (v1 == v2 /\ m1 == m2))
 				     [SMTPat (r |> v1 <*> m1); SMTPat (r |> v2 <*> m2)]
 			      =

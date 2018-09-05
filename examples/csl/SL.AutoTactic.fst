@@ -88,7 +88,8 @@ let eexists (a:Type) (t:unit -> Tac a) : Tac a =
 
 let frame_wp_lemma (#a:Type) (#wp:st_wp a) (#f_post:post a) (m m0 m1:memory)
     (_ : (squash ((m0 <*> m1) == m)))
-    (_ : (squash (wp (frame_post f_post m1) m0))) :
+    (_ : (squash (defined (m0 <*> m1))))
+    (_ : (squash (m == (m0 <*> m1) ==> defined (m0 <*> m1) ==> wp (frame_post f_post m1) m0))) :
          (squash (frame_wp wp f_post m)) = ()
 
 let ite_wp_lemma (#a:Type) (#wp:st_wp a) (#post:post a) (#m:memory)
@@ -486,7 +487,7 @@ let rec sl (i:int) : Tac unit =
   | FramePost ->
     unfold_first_occurrence (`%frame_post);
     norm[];
-    //T.split(); smt(); //definedness
+    ignore (implies_intro ()); //definedness
     sl (i + 1)
 
   | Frame ta twp tpost tm ->
@@ -513,7 +514,7 @@ let rec sl (i:int) : Tac unit =
 
     canon_binder_mem_eq heap_eq;
     
-    //T.split(); smt(); //definedness
+    smt(); //definedness
     ddump ("after frame lemma - 2");
     sl(i + 1)
 
@@ -589,18 +590,18 @@ let prelude' () : Tac unit =
 
   //now the goal looks something like (defined m0 * m1 /\ (m == m0 * m1 /\ (...)))
   //do couple of implies_intro and and_elim to get these conjections
-  (* let h = implies_intro () in and_elim (binder_to_term h); clear h; *)
+  let h = implies_intro () in and_elim (binder_to_term h); clear h;
   let h = implies_intro() in and_elim (binder_to_term h); clear h;
 
   unfold_first_occurrence (`%with_fp);
   
   //defined m0 * m1
-  //ignore (implies_intro ());
+  ignore (implies_intro ());
 
   //this is the m = ..., introduced by the frame_wp
   let m0 = implies_intro () in
   ddump "before rewrite";
-  rewrite m0; clear m0;
+  rewrite m0; //clear m0;
   ddump "after rewrite";
 
   ddump "Before elim ref values";
@@ -617,7 +618,7 @@ let prelude' () : Tac unit =
   clear user_annot;
 
   //the first conjunct there is the m0 = ..., so inline it
-  let h = implies_intro () in rewrite h; clear h;
+  let h = implies_intro () in rewrite h; //clear h;
 
   //push rest of the lhs implicatio in the context
   ignore (implies_intro ())
