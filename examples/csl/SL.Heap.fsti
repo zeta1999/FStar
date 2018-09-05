@@ -162,3 +162,13 @@ val lemma_addrs_in_join (m0 m1:memory)
   : Lemma (requires (defined (m0 <*> m1)))
           (ensures  (S.equal (addrs_in (m0 <*> m1)) (S.union (addrs_in m0) (addrs_in m1))))
           [SMTPat (addrs_in (m0 <*> m1))]
+
+val em_singl (#a:Type) (r:ref a) (v1 v2 : a)
+  : Lemma (requires (r |> v1 == r |> v2))
+          (ensures (v1 == v2))
+          [SMTPat (r |> v1); SMTPat (r |> v2)]
+
+val em_invert (#a:Type) (r:ref a) (v1 v2 : a) (m1 m2 : memory)
+  : Lemma (requires (defined (r |> v1 <*> m1) /\ (r |> v1 <*> m1) == (r |> v2 <*> m2)))
+          (ensures (v1 == v2 /\ m1 == m2))
+          [SMTPat (r |> v1 <*> m1); SMTPat (r |> v2 <*> m2)]

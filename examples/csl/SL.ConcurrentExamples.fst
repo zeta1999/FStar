@@ -122,12 +122,6 @@ let non_neg_inv (r:ref int) : memory -> Type0 =
   //fun m -> exists v. m == r |> v /\ v >= 0
   fun m -> exists v. v >= 0 /\ mem_eq (m == r |> v)
 
-let em_singl r v1 v2 : Lemma (requires (r |> v1 == r |> v2))
-			      (ensures (v1 == v2))
-			      [SMTPat (r |> v1); SMTPat (r |> v2)]
-			      =
- admit () // should be easily proveable from inside SL.Heap
-
 open FStar.Tactics
 
 let take_and_incr (r:ref int) (l : lock [tosref r] (fun m -> non_neg_inv r m)) : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
@@ -224,15 +218,6 @@ let test21 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_
   let v = !r in
   let u = !s in
   ()
-
-(* WARNING: this lemma is crap, this only holds if both heaps are valid
- * (i.e. if `r` is not in m1 nor m2). I'll keep it here for now
- * to show that heap inference is working correctly in the following two examples. *)
-let em_invert r v1 v2 m1 m2  : Lemma (requires (defined (r |> v1 <*> m1) /\ (r |> v1 <*> m1) == (r |> v2 <*> m2)))
-			             (ensures (v1 == v2 /\ m1 == m2))
-				     [SMTPat (r |> v1 <*> m1); SMTPat (r |> v2 <*> m2)]
-			      =
- admit ()
 
 let test22 () : ST unit (fun p m -> m == emp /\ (forall m'. p () m')) [] by (sl_auto ()) =
   let r = alloc 1 in

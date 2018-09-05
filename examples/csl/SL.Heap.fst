@@ -219,3 +219,17 @@ let lemma_addrs_in_disjoint_heaps h0 h1 = ()
 let lemma_addrs_in_points_to #a r x = ()
 
 let lemma_addrs_in_join m0 m1 = ()
+
+let em_singl #a r v1 v2 = ()
+
+let em_invert #a r v1 v2 m1 m2 =
+  match m1, m2 with
+  | Some m1, Some m2 ->
+    begin
+    assert (OS.disjoint (OS.singleton r) m1.domain);
+    assert (OS.disjoint (OS.singleton r) m2.domain);
+    assert (m1.domain == m2.domain);
+    assert (FStar.FunctionalExtensionality.feq m1.contents m2.contents);
+    ()
+    end
+  | _ -> ()
