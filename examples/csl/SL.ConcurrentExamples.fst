@@ -54,19 +54,14 @@ let par_set (r:ref int) : ST int (fun p m -> exists v. m == r |> v /\ p 3 (r |> 
 //  let (x, y) = par_exp emp emp (fun () -> l 1) (fun () -> l 2) in
 //  x + y
 
-#set-options "--debug SL.ConcurrentExamples --debug_level Tac"
 
-open FStar.Tactics
-module T = FStar.Tactics
+(* open FStar.Tactics *)
+(* module T = FStar.Tactics *)
 
-let _ =
-  assert (dfst #int #(fun j -> int) (| 1, 2 |) == 1)
-      by (dump "1"; compute (); dump "2")
+(* let _ = *)
+(*   assert (dfst #int #(fun j -> int) (| 1, 2 |) == 1) *)
+(*       by (dump "1"; compute (); dump "2") *)
       
-//#set-options "--print_implicits --ugly"
-
-#set-options "--print_full_names"
-
 let test_acq (r:ref int) (l:lock [tosref r] (fun _ -> True)) : ST int (fun p m -> m == emp /\ (forall v. p 3 (r |> v))) [tosref r]
   by (sl_auto ())
     
@@ -189,7 +184,7 @@ let test17 (r s : ref int) : ST unit (fun p m -> exists v u. m == (r |> v <*> s 
 let test17' (r s : ref int) : ST unit (fun p m -> exists v u. m == (r |> v <*> s |> u) /\ p () emp) [] by (sl_auto ()) =
   let l = mklock #(fun m -> True) [tosref s; tosref r] in
   ()
-  
+
 let test18 () : ST unit (fun p m -> m == emp /\ p () emp) [] by (sl_auto ()) =
   let r = alloc 0 in
   let s = alloc 1 in

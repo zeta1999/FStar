@@ -113,41 +113,43 @@ let assume_p_lemma (#a:Type) (#p:Type) (#wp:st_wp a) (#post:post a) (#m:memory)
   :Lemma (st_assume_p a p wp post m)
   = ()
 
-let pointsto_to_string (fp_refs:list term) (t:term) : Tac string =
+type bdata = int * term
+
+let pointsto_to_bdata (fp_refs:list term) (t:term) : Tac bdata =
   let hd, tl = collect_app t in
-  ddump (term_to_string hd);
   match inspect hd, tl with
   | Tv_FVar fv, [(ta, Q_Implicit); (tr, Q_Explicit); (tv, Q_Explicit)] ->
     if fv_is fv (`%(op_Bar_Greater)) then
-       (if tr `term_mem` fp_refs then "0" else "1") ^ term_to_string tr
-    else "2"
-  | _, _ -> "2" // have to accept at least Tv_Uvar _ here
+       if tr `term_mem` fp_refs
+       then (0, tr)
+       else (1, tr)
+    else (2, t)
+  | _, _ -> (2, t) // have to accept at least Tv_Uvar _ here
 
-let pointsto_to_string'  (t:term) : Tac string =
-  let hd, tl = collect_app t in
-  ddump (term_to_string hd);
-  match inspect hd, tl with
-  | Tv_FVar fv, [(ta, Q_Implicit); (tr, Q_Explicit); (tv, Q_Explicit)] ->
-    if fv_is fv (`%(op_Bar_Greater)) then
-       "0" ^ term_to_string tr
-    else "2"
-  | _, _ -> "2" // have to accept at least Tv_Uvar _ here
+let pointsto_to_bdata' t = pointsto_to_bdata [] t
 
-let sort_sl (a:Type) (vm:vmap a string) (xs:list var) : Tot (list var) =
-  List.Tot.sortWith #var
-    (fun x y -> FStar.String.compare (select_extra y vm)
-                                     (select_extra x vm)) xs
+let compare_b (n1, t1) (n2, t2) : int =
+  (* lex order *)
+  if n2 - n1 <> 0
+  then n2 - n1
+  else FStar.Order.int_of_order (compare_term t1 t2)
+
+let compare_v #a (vm : vmap a bdata) (v1 v2 : var) =
+    compare_b (select_extra v1 vm) (select_extra v2 vm)
+
+let sort_sl (a:Type) (vm:vmap a bdata) (xs:list var) : Tot (list var) =
+  List.Tot.sortWith #var (compare_v vm) xs
 
 let sort_sl_correct : permute_correct sort_sl =
-  fun #a m vm xs -> sortWith_correct (fun x y -> FStar.String.compare (select_extra y vm) (select_extra x vm)) #a m vm xs
+  fun #a m vm xs -> sortWith_correct (compare_v vm) #a m vm xs
 
 let canon_monoid_sl (fp:list term) : Tac unit =
-  canon_monoid_with string (pointsto_to_string fp) ""
-                            sort_sl (fun #a -> sort_sl_correct #a) memory_cm
+  canon_monoid_with bdata (pointsto_to_bdata fp) (0, `())
+                          sort_sl (fun #a -> sort_sl_correct #a) memory_cm
 
 let canon_monoid_sl' () : Tac unit =
-  canon_monoid_with string pointsto_to_string' ""
-                            sort_sl (fun #a -> sort_sl_correct #a) memory_cm
+  canon_monoid_with bdata pointsto_to_bdata' (0, `())
+                          sort_sl (fun #a -> sort_sl_correct #a) memory_cm
 
 let binder_to_term (b : binder) : Tac term =
   let bv, _ = inspect_binder b in pack (Tv_Var bv)
