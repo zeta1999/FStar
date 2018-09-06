@@ -310,16 +310,10 @@ type data_constructor =
   dtyp: FStar_Syntax_Syntax.typ }
 let (__proj__Mkdata_constructor__item__dname :
   data_constructor -> FStar_Ident.lident) =
-  fun projectee  ->
-    match projectee with
-    | { dname = __fname__dname; dtyp = __fname__dtyp;_} -> __fname__dname
-  
+  fun projectee  -> match projectee with | { dname; dtyp;_} -> dname 
 let (__proj__Mkdata_constructor__item__dtyp :
   data_constructor -> FStar_Syntax_Syntax.typ) =
-  fun projectee  ->
-    match projectee with
-    | { dname = __fname__dname; dtyp = __fname__dtyp;_} -> __fname__dtyp
-  
+  fun projectee  -> match projectee with | { dname; dtyp;_} -> dtyp 
 type inductive_family =
   {
   iname: FStar_Ident.lident ;
@@ -332,55 +326,37 @@ let (__proj__Mkinductive_family__item__iname :
   inductive_family -> FStar_Ident.lident) =
   fun projectee  ->
     match projectee with
-    | { iname = __fname__iname; iparams = __fname__iparams;
-        ityp = __fname__ityp; idatas = __fname__idatas;
-        iquals = __fname__iquals; imetadata = __fname__imetadata;_} ->
-        __fname__iname
+    | { iname; iparams; ityp; idatas; iquals; imetadata;_} -> iname
   
 let (__proj__Mkinductive_family__item__iparams :
   inductive_family -> FStar_Syntax_Syntax.binders) =
   fun projectee  ->
     match projectee with
-    | { iname = __fname__iname; iparams = __fname__iparams;
-        ityp = __fname__ityp; idatas = __fname__idatas;
-        iquals = __fname__iquals; imetadata = __fname__imetadata;_} ->
-        __fname__iparams
+    | { iname; iparams; ityp; idatas; iquals; imetadata;_} -> iparams
   
 let (__proj__Mkinductive_family__item__ityp :
   inductive_family -> FStar_Syntax_Syntax.term) =
   fun projectee  ->
     match projectee with
-    | { iname = __fname__iname; iparams = __fname__iparams;
-        ityp = __fname__ityp; idatas = __fname__idatas;
-        iquals = __fname__iquals; imetadata = __fname__imetadata;_} ->
-        __fname__ityp
+    | { iname; iparams; ityp; idatas; iquals; imetadata;_} -> ityp
   
 let (__proj__Mkinductive_family__item__idatas :
   inductive_family -> data_constructor Prims.list) =
   fun projectee  ->
     match projectee with
-    | { iname = __fname__iname; iparams = __fname__iparams;
-        ityp = __fname__ityp; idatas = __fname__idatas;
-        iquals = __fname__iquals; imetadata = __fname__imetadata;_} ->
-        __fname__idatas
+    | { iname; iparams; ityp; idatas; iquals; imetadata;_} -> idatas
   
 let (__proj__Mkinductive_family__item__iquals :
   inductive_family -> FStar_Syntax_Syntax.qualifier Prims.list) =
   fun projectee  ->
     match projectee with
-    | { iname = __fname__iname; iparams = __fname__iparams;
-        ityp = __fname__ityp; idatas = __fname__idatas;
-        iquals = __fname__iquals; imetadata = __fname__imetadata;_} ->
-        __fname__iquals
+    | { iname; iparams; ityp; idatas; iquals; imetadata;_} -> iquals
   
 let (__proj__Mkinductive_family__item__imetadata :
   inductive_family -> FStar_Extraction_ML_Syntax.metadata) =
   fun projectee  ->
     match projectee with
-    | { iname = __fname__iname; iparams = __fname__iparams;
-        ityp = __fname__ityp; idatas = __fname__idatas;
-        iquals = __fname__iquals; imetadata = __fname__imetadata;_} ->
-        __fname__imetadata
+    | { iname; iparams; ityp; idatas; iquals; imetadata;_} -> imetadata
   
 let (print_ifamily : inductive_family -> unit) =
   fun i  ->

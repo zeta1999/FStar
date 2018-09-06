@@ -37,16 +37,12 @@ type env =
 let (__proj__Mkenv__item__tcenv : env -> FStar_TypeChecker_Env.env) =
   fun projectee  ->
     match projectee with
-    | { tcenv = __fname__tcenv; gamma = __fname__gamma;
-        tydefs = __fname__tydefs; type_names = __fname__type_names;
-        currentModule = __fname__currentModule;_} -> __fname__tcenv
+    | { tcenv; gamma; tydefs; type_names; currentModule;_} -> tcenv
   
 let (__proj__Mkenv__item__gamma : env -> binding Prims.list) =
   fun projectee  ->
     match projectee with
-    | { tcenv = __fname__tcenv; gamma = __fname__gamma;
-        tydefs = __fname__tydefs; type_names = __fname__type_names;
-        currentModule = __fname__currentModule;_} -> __fname__gamma
+    | { tcenv; gamma; tydefs; type_names; currentModule;_} -> gamma
   
 let (__proj__Mkenv__item__tydefs :
   env ->
@@ -56,25 +52,19 @@ let (__proj__Mkenv__item__tydefs :
   =
   fun projectee  ->
     match projectee with
-    | { tcenv = __fname__tcenv; gamma = __fname__gamma;
-        tydefs = __fname__tydefs; type_names = __fname__type_names;
-        currentModule = __fname__currentModule;_} -> __fname__tydefs
+    | { tcenv; gamma; tydefs; type_names; currentModule;_} -> tydefs
   
 let (__proj__Mkenv__item__type_names :
   env -> FStar_Syntax_Syntax.fv Prims.list) =
   fun projectee  ->
     match projectee with
-    | { tcenv = __fname__tcenv; gamma = __fname__gamma;
-        tydefs = __fname__tydefs; type_names = __fname__type_names;
-        currentModule = __fname__currentModule;_} -> __fname__type_names
+    | { tcenv; gamma; tydefs; type_names; currentModule;_} -> type_names
   
 let (__proj__Mkenv__item__currentModule :
   env -> FStar_Extraction_ML_Syntax.mlpath) =
   fun projectee  ->
     match projectee with
-    | { tcenv = __fname__tcenv; gamma = __fname__gamma;
-        tydefs = __fname__tydefs; type_names = __fname__type_names;
-        currentModule = __fname__currentModule;_} -> __fname__currentModule
+    | { tcenv; gamma; tydefs; type_names; currentModule;_} -> currentModule
   
 let (debug : env -> (unit -> unit) -> unit) =
   fun g  ->
