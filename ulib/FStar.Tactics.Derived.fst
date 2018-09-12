@@ -12,6 +12,8 @@ module L = FStar.List.Tot
 let goals () : Tac (list goal) = goals_of (get ())
 let smt_goals () : Tac (list goal) = smt_goals_of (get ())
 
+let fail (m:string) = raise (TacticFailure m)
+
 (** Return the current *goal*, not its type. (Ignores SMT goals) *)
 let _cur_goal () : Tac goal =
     match goals () with
