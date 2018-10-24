@@ -2170,21 +2170,17 @@ and tc_eqn scrutinee env branch
                 | Tm_uinst _
                 | Tm_fvar _ ->
                   let f = head_constructor pat_exp in
-                  if not (Env.is_datacon env f.v)
-                  then [] //A non-pattern sub-term, typically a type constructor unified via a dot-pattern
-                  else discriminate scrutinee_tm (head_constructor pat_exp)
+                  discriminate scrutinee_tm (head_constructor pat_exp)
                 | Tm_app(head, args) ->
                     let f = head_constructor head in
-                    if not (Env.is_datacon env f.v) //A non-pattern sub-term of pat_exp
-                    then []
-                    else let sub_term_guards = args |> List.mapi (fun i (ei, _) ->
-                            let projector = Env.lookup_projector env f.v i in //NS: TODO ... should this be a marked as a record projector? But it doesn't matter for extraction
-                            match Env.try_lookup_lid env projector with
-                             | None -> []
-                             | _ ->
-                                let sub_term = mk_Tm_app (S.fvar (Ident.set_lid_range projector f.p) (Delta_equational_at_level 1) None) [as_arg scrutinee_tm] None f.p in
-                                build_branch_guard sub_term ei) |> List.flatten in
-                         discriminate scrutinee_tm f @ sub_term_guards
+                    let sub_term_guards = args |> List.mapi (fun i (ei, _) ->
+                       let projector = Env.lookup_projector env f.v i in //NS: TODO ... should this be a marked as a record projector? But it doesn't matter for extraction
+                       match Env.try_lookup_lid env projector with
+                        | None -> []
+                        | _ ->
+                           let sub_term = mk_Tm_app (S.fvar (Ident.set_lid_range projector f.p) (Delta_equational_at_level 1) None) [as_arg scrutinee_tm] None f.p in
+                           build_branch_guard sub_term ei) |> List.flatten in
+                    discriminate scrutinee_tm f @ sub_term_guards
                 | _ -> [] //a non-pattern sub-term: must be from a dot pattern
           in
 
