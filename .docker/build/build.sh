@@ -267,6 +267,22 @@ function build_fstar() {
             } &
 
             {
+                make -C hacl-star/frodo/spec -j $threads make -C frodo/spec ||
+                    {
+                        echo "Error - Frodo spec (HACL*)"
+                        echo " - Frodo spec (HACL*)" >>$ORANGE_FILE
+                    }
+            } &
+
+            {
+                make -C hacl-star/frodo/spec -j $threads make -C frodo/code ||
+                    {
+                        echo "Error - Frodo code (HACL*)"
+                        echo " - Frodo code (HACL*)" >>$ORANGE_FILE
+                    }
+            } &
+
+            {
                 OTHERFLAGS='--warn_error -276 --use_hint_hashes' make -C hacl-star/code/hash/ -j $threads Hacl.Impl.SHA2_256.fst-verify ||
                     {
                         echo "Error - Hacl.Impl.SHA2_256.fst-verify (HACL*)"
