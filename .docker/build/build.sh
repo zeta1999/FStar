@@ -267,7 +267,7 @@ function build_fstar() {
             } &
 
             {
-                make -C hacl-star/frodo/spec -j $threads make -C frodo/spec ||
+                make -C hacl-star/frodo/spec -j $threads ||
                     {
                         echo "Error - Frodo spec (HACL*)"
                         echo " - Frodo spec (HACL*)" >>$ORANGE_FILE
@@ -275,7 +275,7 @@ function build_fstar() {
             } &
 
             {
-                make -C hacl-star/frodo/spec -j $threads make -C frodo/code ||
+                make -C hacl-star/frodo/code -j $threads ||
                     {
                         echo "Error - Frodo code (HACL*)"
                         echo " - Frodo code (HACL*)" >>$ORANGE_FILE
