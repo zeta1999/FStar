@@ -1097,6 +1097,7 @@ val modifies_trans
 : Lemma
   (requires (modifies s12 h1 h2 /\ modifies s23 h2 h3))
   (ensures (modifies (loc_union s12 s23) h1 h3))
+  [SMTPat (modifies s12 h1 h2); SMTPat (modifies s23 h2 h3)]
 
 val modifies_linear_refl (s:loc) (h:HS.mem)
   : Lemma (modifies_linear s h h)
