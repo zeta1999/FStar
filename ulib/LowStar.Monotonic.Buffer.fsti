@@ -1110,6 +1110,10 @@ val modifies_linear_trans (s l:loc) (h1 h2 h3:HS.mem)
 val modifies_iff_modifies_linear (l:loc) (h1 h2:HS.mem)
   : Lemma (modifies l h1 h2 <==> modifies_linear l h1 h2)
 
+let modifies_linear_elim (l: loc) (h1 h2: HS.mem) : Lemma
+  (requires (modifies_linear l h1 h2))
+  (ensures (modifies l h1 h2))
+= modifies_iff_modifies_linear l h1 h2
 
 /// Regions that are not live can be removed from sets of memory
 /// locations that are modified.
@@ -1444,6 +1448,12 @@ val modifies_inert_intro
   (requires (modifies s h1 h2))
   (ensures (modifies_inert s h1 h2))
   [SMTPat (modifies s h1 h2)]
+
+let modifies_linear_modifies_inert (l: loc) (h1 h2: HS.mem) : Lemma
+  (requires (modifies_linear l h1 h2))
+  (ensures (modifies_inert l h1 h2))
+  [SMTPat (modifies_linear l h1 h2)]
+= modifies_iff_modifies_linear l h1 h2
 
 val modifies_inert_live_region
   (s: loc)
