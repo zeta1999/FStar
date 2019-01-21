@@ -2230,7 +2230,8 @@ and (tc_maybe_toplevel_term :
                              let repr =
                                FStar_TypeChecker_Env.inst_effect_fun_with 
                                  [u] env1 ed
-                                 ([], (ed.FStar_Syntax_Syntax.repr))
+                                 ([],
+                                   ((ed.FStar_Syntax_Syntax.repr).FStar_Syntax_Syntax.monad_m))
                                 in
                              let t =
                                let uu____6031 =
@@ -2312,7 +2313,7 @@ and (tc_maybe_toplevel_term :
                                                   let uu____6350 =
                                                     let uu____6352 =
                                                       FStar_Syntax_Print.term_to_string
-                                                        ed.FStar_Syntax_Syntax.repr
+                                                        (ed.FStar_Syntax_Syntax.repr).FStar_Syntax_Syntax.monad_m
                                                        in
                                                     let uu____6354 =
                                                       FStar_Syntax_Print.term_to_string

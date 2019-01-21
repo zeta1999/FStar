@@ -1470,12 +1470,10 @@ let (gen_wps_for_free :
                           (uu___365_4262.FStar_Syntax_Syntax.univs);
                         FStar_Syntax_Syntax.binders =
                           (uu___365_4262.FStar_Syntax_Syntax.binders);
+                        FStar_Syntax_Syntax.spec =
+                          (uu___365_4262.FStar_Syntax_Syntax.spec);
                         FStar_Syntax_Syntax.signature =
                           (uu___365_4262.FStar_Syntax_Syntax.signature);
-                        FStar_Syntax_Syntax.ret_wp =
-                          (uu___365_4262.FStar_Syntax_Syntax.ret_wp);
-                        FStar_Syntax_Syntax.bind_wp =
-                          (uu___365_4262.FStar_Syntax_Syntax.bind_wp);
                         FStar_Syntax_Syntax.if_then_else = uu____4263;
                         FStar_Syntax_Syntax.ite_wp = uu____4271;
                         FStar_Syntax_Syntax.stronger = uu____4279;
@@ -1486,10 +1484,8 @@ let (gen_wps_for_free :
                         FStar_Syntax_Syntax.trivial = uu____4319;
                         FStar_Syntax_Syntax.repr =
                           (uu___365_4262.FStar_Syntax_Syntax.repr);
-                        FStar_Syntax_Syntax.return_repr =
-                          (uu___365_4262.FStar_Syntax_Syntax.return_repr);
-                        FStar_Syntax_Syntax.bind_repr =
-                          (uu___365_4262.FStar_Syntax_Syntax.bind_repr);
+                        FStar_Syntax_Syntax.elaborated =
+                          (uu___365_4262.FStar_Syntax_Syntax.elaborated);
                         FStar_Syntax_Syntax.actions =
                           (uu___365_4262.FStar_Syntax_Syntax.actions);
                         FStar_Syntax_Syntax.eff_attrs =
