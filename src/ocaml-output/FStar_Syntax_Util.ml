@@ -1844,7 +1844,7 @@ let rec (arrow_formals_comp :
       FStar_Pervasives_Native.option) Prims.list * FStar_Syntax_Syntax.comp))
   =
   fun k  ->
-    let k1 = FStar_Syntax_Subst.compress k  in
+    let k1 = unascribe k  in
     match k1.FStar_Syntax_Syntax.n with
     | FStar_Syntax_Syntax.Tm_arrow (bs,c) ->
         let uu____6853 = FStar_Syntax_Subst.open_comp bs c  in
