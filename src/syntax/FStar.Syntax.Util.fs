@@ -1858,6 +1858,9 @@ let process_pragma p r =
       | Some s -> set_options s
       end
 
+    | RestartSolver ->
+      ()
+
     | PopOptions ->
       if Options.internal_pop ()
       then ()
