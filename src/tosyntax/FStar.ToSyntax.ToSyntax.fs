@@ -2313,7 +2313,7 @@ let rec desugar_effect env d (quals: qualifiers) eff_name eff_binders eff_typ ef
     let eff_t = desugar_term env eff_typ in
 
     let mandatory_members =
-      let rr_members = ["repr" ; "return" ; "bind"] in
+      let rr_members = ["repr" ; "return" ; "bind"; "wp_type"] in
       (* the first 3 are optional but must not be counted as actions *)
       rr_members @ [
         "return_wp";
@@ -2393,7 +2393,7 @@ let rec desugar_effect env d (quals: qualifiers) eff_name eff_binders eff_typ ef
            binders     = binders;
            signature   = eff_t;
            spec        = {
-             monad_m     = S.tun;
+             monad_m     = snd <| lookup_or_dummy "wp_type";
              monad_ret   = lookup_or_dummy "return_wp";
              monad_bind  = lookup_or_dummy "bind_wp";
            };
@@ -2411,6 +2411,7 @@ let rec desugar_effect env d (quals: qualifiers) eff_name eff_binders eff_typ ef
              monad_ret   = lookup_or_dummy "return";
            };
            elaborated  = false;
+           spec_dm4f   = false;
            actions     = actions;
            eff_attrs   = List.map (desugar_term env) attrs;
          }));
@@ -2485,6 +2486,7 @@ and desugar_redefine_effect env d trans_qual quals eff_name eff_binders defn =
             trivial     =sub ed.trivial;
 
             elaborated  =ed.elaborated;
+            spec_dm4f   =ed.spec_dm4f;
             repr = {
               monad_m = snd (sub ([], ed.repr.monad_m));
               monad_ret = sub ed.repr.monad_ret;
