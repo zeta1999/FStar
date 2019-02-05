@@ -159,3 +159,5 @@ let reflection_primops : list<Cfg.primitive_step> = [
     mk2 "lookup_typ"            lookup_typ            E.e_env             e_string_list      (e_option E.e_sigelt)
                                 lookup_typ            NRE.e_env           NBET.e_string_list (NBET.e_option NRE.e_sigelt);
 ]
+
+let _ = List.iter FStar.TypeChecker.Cfg.register_extra_step reflection_primops
