@@ -207,7 +207,7 @@ type primitive_step = {
      interpretation_nbe:(NBETerm.nbe_cbs -> NBETerm.args -> option<NBETerm.t>)
 }
 
-type prim_step_set = BU.psmap<primitive_step>
+type prim_step_set = BU.smap<primitive_step>
 
 type cfg = {
      steps: fsteps;
@@ -230,22 +230,26 @@ let cfg_to_string cfg =
 let cfg_env cfg = cfg.tcenv
 
 let add_step (s : primitive_step) (ss : prim_step_set) =
-    BU.psmap_add ss (I.text_of_lid s.name) s
+    let ss = BU.smap_copy ss in
+    BU.smap_add ss (I.text_of_lid s.name) s;
+    ss
 
 let merge_steps (s1 : prim_step_set) (s2 : prim_step_set) : prim_step_set =
-    BU.psmap_fold s1 (fun k v m -> BU.psmap_add m k v) s2
+    let s2 = BU.smap_copy s2 in
+    BU.smap_fold s1 (fun k v () -> BU.smap_add s2 k v) ();
+    s2
 
 let add_steps (m : prim_step_set) (l : list<primitive_step>) : prim_step_set =
     List.fold_right add_step l m
 
 let prim_from_list (l : list<primitive_step>) : prim_step_set =
-    add_steps (BU.psmap_empty ()) l
+    add_steps (BU.smap_create 50) l
 
 let find_prim_step cfg fv =
-    BU.psmap_try_find cfg.primitive_steps (I.text_of_lid fv.fv_name.v)
+    BU.smap_try_find cfg.primitive_steps (I.text_of_lid fv.fv_name.v)
 
 let is_prim_step cfg fv =
-    BU.is_some (BU.psmap_try_find cfg.primitive_steps (I.text_of_lid fv.fv_name.v))
+    BU.is_some (find_prim_step cfg fv)
 
 let log cfg f =
     if cfg.debug.gen then f () else ()
@@ -875,9 +879,9 @@ let primop_time_report () : string =
     List.fold_right (fun (nm, ms) rest -> (BU.format2 "%sms --- %s\n" (fixto 10 (BU.string_of_int ms)) nm) ^ rest) pairs ""
 
 let mk_extendable_primop_set () =
-  let steps = BU.mk_ref [] in
+  let steps = BU.mk_ref (BU.smap_create 50) in
   let register (p:primitive_step) =
-      steps := p :: !steps
+      steps := add_step p !steps
   in
   let retrieve () = !steps
   in
@@ -889,7 +893,7 @@ let extra_steps = mk_extendable_primop_set ()
 let register_plugin p = fst plugins p
 let retrieve_plugins () =
     if Options.no_plugins ()
-    then []
+    then BU.smap_create 50
     else snd plugins ()
 
 let register_extra_step p = fst extra_steps p
@@ -899,7 +903,6 @@ let add_nbe s = // ZP : Turns nbe flag on, to be used as the default norm strate
     if Options.use_nbe ()
     then { s with nbe_step = true }
     else s
-
 
 let config' psteps s e =
     let d = s |> List.collect (function
