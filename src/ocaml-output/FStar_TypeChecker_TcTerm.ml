@@ -2296,7 +2296,7 @@ and (tc_maybe_toplevel_term :
                                       -> (t1, res, wp, g)
                                   | FStar_Syntax_Syntax.Tm_app
                                       (uu____6323,(res,uu____6325)::[]) ->
-                                      let null =
+                                      let null_t =
                                         let uu____6365 =
                                           FStar_All.pipe_right
                                             ed.FStar_Syntax_Syntax.null_wp
@@ -2305,8 +2305,8 @@ and (tc_maybe_toplevel_term :
                                         FStar_Syntax_Util.un_uinst uu____6365
                                          in
                                       let null_inst =
-                                        FStar_Syntax_Syntax.mk_Tm_uinst null
-                                          [u]
+                                        FStar_Syntax_Syntax.mk_Tm_uinst
+                                          null_t [u]
                                          in
                                       let wp =
                                         let uu____6378 =
