@@ -109,9 +109,9 @@ let check_z3hash () =
 
 let ini_params () =
   check_z3hash ();
-  List.append ["-smt2"; "-in"; "auto_config=false";
-               "model=true"; "smt.relevancy=2"; "smt.case_split=3";
-               (Util.format1 "smt.random_seed=%s" (string_of_int (Options.z3_seed ())))]
+  List.append ["-smt2";
+               "-in";
+               Util.format1 "smt.random_seed=%s" (string_of_int (Options.z3_seed ()))]
               (Options.z3_cliopt ())
 
 type label = string
@@ -387,7 +387,10 @@ let z3_options = BU.mk_ref
     "(set-option :global-decls false)\n\
      (set-option :smt.mbqi false)\n\
      (set-option :auto_config false)\n\
-     (set-option :produce-unsat-cores true)\n"
+     (set-option :produce-unsat-cores true)\n\
+     (set-option :model true)\n\
+     (set-option :smt.case_split 3)\n\
+     (set-option :smt.relevancy 2)\n"
 
 // Use by F*.js
 let set_z3_options opts =
@@ -528,10 +531,37 @@ let giveZ3 decls =
 let refresh () =
     if (Options.n_cores() < 2) then
         (!bg_z3_proc).refresh();
-        bg_scope := List.flatten (List.rev !fresh_scope)
+    bg_scope := List.flatten (List.rev !fresh_scope)
 
+let context_profile (theory:decls_t) =
+    let modules, total_decls =
+        List.fold_left (fun (out, _total) d ->
+            match d with
+            | Module(name, decls) ->
+              let decls =
+                List.filter
+                    (function Assume _ -> true
+                             | _ -> false)
+                    decls in
+              let n = List.length decls in
+              (name, n)::out, n + _total
+            | _ -> out, _total)
+            ([], 0)
+            theory
+    in
+    let modules = List.sortWith (fun (_, n) (_, m) -> m - n) modules in
+    if modules <> []
+    then BU.print1 "Z3 Proof Stats: context_profile with %s assertions\n"
+                  (BU.string_of_int total_decls);
+    List.iter (fun (m, n) ->
+        if n <> 0 then
+            BU.print2 "Z3 Proof Stats: %s produced %s SMT decls\n"
+                        m
+                        (string_of_int n))
+               modules
 let mk_input theory =
     let options = !z3_options in
+    if Options.print_z3_statistics() then context_profile theory;
     let r, hash =
         if Options.record_hints()
         || (Options.use_hints() && Options.use_hint_hashes()) then
