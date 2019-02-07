@@ -553,6 +553,8 @@ let (cps_and_elaborate_ed :
                                         FStar_Syntax_Syntax.elaborated =
                                           (uu___383_946.FStar_Syntax_Syntax.elaborated);
                                         FStar_Syntax_Syntax.spec_dm4f = true;
+                                        FStar_Syntax_Syntax.interp =
+                                          (uu___383_946.FStar_Syntax_Syntax.interp);
                                         FStar_Syntax_Syntax.actions =
                                           (uu___383_946.FStar_Syntax_Syntax.actions);
                                         FStar_Syntax_Syntax.eff_attrs =
@@ -1746,6 +1748,10 @@ let (cps_and_elaborate_ed :
                                                                     =
                                                                     (
                                                                     uu___386_3183.FStar_Syntax_Syntax.spec_dm4f);
+                                                                  FStar_Syntax_Syntax.interp
+                                                                    =
+                                                                    (
+                                                                    uu___386_3183.FStar_Syntax_Syntax.interp);
                                                                   FStar_Syntax_Syntax.actions
                                                                     =
                                                                     actions1;
@@ -1946,6 +1952,8 @@ let tc_eff_decl :
                                   (uu___387_3480.FStar_Syntax_Syntax.elaborated);
                                 FStar_Syntax_Syntax.spec_dm4f =
                                   (uu___387_3480.FStar_Syntax_Syntax.spec_dm4f);
+                                FStar_Syntax_Syntax.interp =
+                                  (uu___387_3480.FStar_Syntax_Syntax.interp);
                                 FStar_Syntax_Syntax.actions =
                                   (uu___387_3480.FStar_Syntax_Syntax.actions);
                                 FStar_Syntax_Syntax.eff_attrs =
@@ -2105,6 +2113,8 @@ let tc_eff_decl :
                                       (uu___388_3579.FStar_Syntax_Syntax.elaborated);
                                     FStar_Syntax_Syntax.spec_dm4f =
                                       (uu___388_3579.FStar_Syntax_Syntax.spec_dm4f);
+                                    FStar_Syntax_Syntax.interp =
+                                      (uu___388_3579.FStar_Syntax_Syntax.interp);
                                     FStar_Syntax_Syntax.actions = uu____3618;
                                     FStar_Syntax_Syntax.eff_attrs =
                                       (uu___388_3579.FStar_Syntax_Syntax.eff_attrs)
@@ -4197,6 +4207,8 @@ let tc_eff_decl :
                                                  FStar_Syntax_Syntax.spec_dm4f
                                                    =
                                                    (uu___395_6653.FStar_Syntax_Syntax.spec_dm4f);
+                                                 FStar_Syntax_Syntax.interp =
+                                                   (uu___395_6653.FStar_Syntax_Syntax.interp);
                                                  FStar_Syntax_Syntax.actions
                                                    = uu____6699;
                                                  FStar_Syntax_Syntax.eff_attrs
@@ -5089,6 +5101,8 @@ let (tc_decl' :
                        FStar_Syntax_Syntax.elaborated = true;
                        FStar_Syntax_Syntax.spec_dm4f =
                          (uu___401_8847.FStar_Syntax_Syntax.spec_dm4f);
+                       FStar_Syntax_Syntax.interp =
+                         (uu___401_8847.FStar_Syntax_Syntax.interp);
                        FStar_Syntax_Syntax.actions =
                          (uu___401_8847.FStar_Syntax_Syntax.actions);
                        FStar_Syntax_Syntax.eff_attrs =

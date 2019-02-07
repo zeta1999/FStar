@@ -1508,6 +1508,8 @@ let (gen_wps_for_free :
                           (uu___365_4338.FStar_Syntax_Syntax.elaborated);
                         FStar_Syntax_Syntax.spec_dm4f =
                           (uu___365_4338.FStar_Syntax_Syntax.spec_dm4f);
+                        FStar_Syntax_Syntax.interp =
+                          (uu___365_4338.FStar_Syntax_Syntax.interp);
                         FStar_Syntax_Syntax.actions =
                           (uu___365_4338.FStar_Syntax_Syntax.actions);
                         FStar_Syntax_Syntax.eff_attrs =
