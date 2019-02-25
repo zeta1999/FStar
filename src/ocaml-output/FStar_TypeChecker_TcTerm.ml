@@ -2326,8 +2326,7 @@ and (tc_maybe_toplevel_term :
                                       let wp =
                                         let uu____6388 =
                                           let uu____6399 =
-                                            FStar_Syntax_Syntax.as_arg res
-                                             in
+                                            FStar_Syntax_Syntax.iarg res  in
                                           let uu____6408 =
                                             let uu____6419 =
                                               FStar_Syntax_Syntax.as_arg e1
