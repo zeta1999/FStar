@@ -8,7 +8,7 @@
       0,
       [ "@query" ],
       0,
-      "17c7209a1a59506fa9d7dd946e6efe83"
+      "3147d3ebff4786693509e579881205ff"
     ],
     [
       "X64.Poly1305.Spec_s.modp'",
@@ -109,7 +109,7 @@
       0,
       [ "@query" ],
       0,
-      "26c545ab8f3a985db5096f5e8f3ef114"
+      "890b51c0ba369608b272aae5769ed086"
     ],
     [
       "X64.Poly1305.Spec_s.modp'",
