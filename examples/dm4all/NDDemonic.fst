@@ -37,6 +37,27 @@ new_effect {
 let test1 () : ND int (fun p -> p 5 /\ p 3) = 5
 let test2 () : ND int (fun p -> p 5 /\ p 3) = 3
 
+(* can't use test1 since its definition is transparent to SMT *)
+assume val f : unit -> ND int (fun p -> p 5 /\ p 3)
+
+
+let typeof #a (x:a) = a
+
+let test_rel0 () = reify (f ())
+
+let ty = typeof (test_rel0 ())
+
+#set-options "--debug NDDemonic --debug_level SMTQuery"
+
+let test_rel1 () : l:repr int{forall p. p 5 /\ p 3 ==> (forall x. List.memP x l ==> p x)} = reify (f ())
+
+
+[@expect_failure]
+let test_rel2 () : l:repr int{forall p. p 3 ==> (forall x. List.memP x l ==> p x)} = reify (f ())
+
+[@expect_failure]
+let test_rel3 () : l:repr int{forall p. p 5 ==> (forall x. List.memP x l ==> p x)} = reify (f ())
+
 // Whoa! This used to succeed since the effect is marked as reifiable,
 // and Rel compares the representation types on each side for the
 // subtyping. and both are just `unit -> list a`. I changed it to check

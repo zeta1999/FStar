@@ -1057,7 +1057,7 @@ and tc_universe env u : universe =
    let rec aux u =
        let u = SS.compress_univ u in
        match u with
-        | U_bvar _  -> failwith "Impossible: locally nameless"
+        | U_bvar _  -> failwith "Impossible: tc_universe: locally nameless"
         | U_unknown -> failwith "Unknown universe"
         | U_unif _
         | U_zero    -> u

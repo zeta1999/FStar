@@ -91,7 +91,7 @@ let recheck_debug s env t :term =
 
 
 let check_and_gen env t k =
-    // BU.print1 "\x1b[01;36mcheck and gen \x1b[00m%s\n" (Print.term_to_string t);
+    BU.print1 "\x1b[01;36mcheck and gen \x1b[00m%s\n" (Print.term_to_string t);
     TcUtil.generalize_universes env (tc_check_trivial_guard env t k)
 
 let check_nogen env t k =
@@ -585,8 +585,44 @@ let tc_eff_decl env0 se (ed:Syntax.eff_decl) =
       Some <| check_and_gen' env ([], interp) expected_k
   in
 
+  let stronger =
+    let t, _ = U.type_u() in
+    let expected_k = U.arrow [S.mk_binder a;
+                                 S.null_binder wp_a;
+                                 S.null_binder wp_a]
+                                (S.mk_Total t) in
+    check_and_gen' env ed.stronger expected_k in
+
+  // we can define mrelation = fun #a c wp -> M?.stronger a wp (interp #a c)
+  let mrelation_from_interp (interp:term) : term =
+    let a, wp_a = fresh_effect_signature () in
+    let repr_a = U.mk_app ed.repr.monad_m [S.as_arg (S.bv_to_name a)] in
+    let c  = S.new_bv (Some interp.pos) repr_a in
+    let wp = S.new_bv (Some interp.pos) wp_a in
+    let body = U.mk_app (snd stronger)
+                                 [S.as_arg (S.bv_to_name a);
+                                  S.as_arg (S.bv_to_name wp);
+                                  S.as_arg (U.mk_app interp [S.iarg (S.bv_to_name a);
+                                                             S.as_arg (S.bv_to_name c)])]
+    in
+    let abs = U.abs [S.mk_implicit_binder a; S.mk_binder c; S.mk_binder wp]
+                    body
+                    None
+    in
+    abs
+  in
+
   let mrelation =
-    match ed.mrelation with
+    (* mrelation has a default definition in terms of interp *)
+    let mrel =
+      match ed.mrelation with
+      | Some t -> Some t
+      | None ->
+        match ed.interp with
+        | Some t -> Some (mrelation_from_interp t)
+        | None -> None
+    in
+    match mrel with
     | None -> None
     | Some mrelation ->
       let a, wp_a = fresh_effect_signature () in
@@ -611,14 +647,6 @@ let tc_eff_decl env0 se (ed:Syntax.eff_decl) =
                                  S.null_binder wp_a]
                                  (S.mk_Total wp_a) in
     check_and_gen' env ed.ite_wp expected_k in
-
-  let stronger =
-    let t, _ = U.type_u() in
-    let expected_k = U.arrow [S.mk_binder a;
-                                 S.null_binder wp_a;
-                                 S.null_binder wp_a]
-                                (S.mk_Total t) in
-    check_and_gen' env ed.stronger expected_k in
 
   let close_wp =
     let b = S.new_bv (Some (range_of_lid ed.mname)) (U.type_u() |> fst) in
