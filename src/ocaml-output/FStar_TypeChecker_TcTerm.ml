@@ -3760,7 +3760,7 @@ and (tc_universe :
         let u2 = FStar_Syntax_Subst.compress_univ u1  in
         match u2 with
         | FStar_Syntax_Syntax.U_bvar uu____10396 ->
-            failwith "Impossible: locally nameless"
+            failwith "Impossible: tc_universe: locally nameless"
         | FStar_Syntax_Syntax.U_unknown  -> failwith "Unknown universe"
         | FStar_Syntax_Syntax.U_unif uu____10400 -> u2
         | FStar_Syntax_Syntax.U_zero  -> u2
